@@ -105,6 +105,22 @@ Status: complete.
   adapter + dialect + generic paths + harness, and the novelty work table
   matches the ideas doc.
 
+## Final validation (2026-10-02, `895f0f1`, TheRock 10.0.0, gfx1151)
+
+- `check-pr`: 38/38 pass (cpu-test, includes new `model_ops_test` and
+  `qwen38_flash_next.ops_parity`); `check-format.py` and `check-docs.py`
+  clean.
+- Matched-token full logits on the final binary: all 1664 rows x 2
+  schedules hash-equal to the `c2ea1cf` baseline — shared scalar ops and
+  the package refactor change no numerics.
+- `qwen38_flash_next_validate_test` (MTP, 4K context): 4/4 checks pass.
+- `qwen_vision_serving_test` (Flash-Next + MTP + mmproj): pass, including
+  incremental oracle with zero logit error and disk image-identity replay.
+- Generic paths: `bench --generic` (pp64/decode through the runner pool)
+  and `prompt --generic` produce correct, deterministic output. The generic
+  bench is slower than the specialized harness (pool/scheduler overhead),
+  as intended: it is a correctness baseline, not a performance path.
+
 ## Working rules
 
 - Small, independently reviewable commits; one focused change per commit.
