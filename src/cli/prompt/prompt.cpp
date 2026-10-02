@@ -18,6 +18,8 @@
 #include "src/core/crypto/sha256.hpp"
 #include "src/core/gguf_reader.hpp"
 #include "src/core/image.hpp"
+#include "src/models/common/register_packages.hpp"
+#include "src/models/common/registry.hpp"
 #include "src/models/deepseek_v4_flash/dspark_sampler.hpp"
 #include "src/models/deepseek_v4_flash/engine.hpp"
 #include "src/models/qwen/chat_template.hpp"
@@ -250,6 +252,23 @@ void PrintModelLoadTime(std::chrono::steady_clock::time_point start,
 bool IsDeepSeekV4Flash(const core::GgufReader& reader) {
   return reader.GetMetadataString("general.architecture") == "deepseek4";
 }
+
+#if defined(ENGINE_ENABLE_HIP)
+// GPU dispatch resolves through the package registry so model packages own
+// their architecture identity. CPU builds keep the string check above for
+// their "requires ENGINE_ENABLE_HIP" error paths.
+bool DispatchToModelPackage(const core::GgufReader& reader,
+                            std::string* package_name) {
+  models::common::RegisterAllModelPackages();
+  const models::common::TextModelPackage* package =
+      models::common::TextModelRegistry::Global().FindForReader(reader);
+  if (package == nullptr) {
+    return false;
+  }
+  *package_name = package->Name();
+  return true;
+}
+#endif
 
 std::optional<ReasoningEffort> ParseReasoningEffort(std::string_view value) {
   if (value == "minimal") {
@@ -999,7 +1018,12 @@ int RunPrompt(std::span<const char* const> args) {
       std::move(reader_owner));
 
 #if defined(ENGINE_ENABLE_HIP)
-  if (IsDeepSeekV4Flash(*reader)) {
+  std::string package_name;
+  if (!DispatchToModelPackage(*reader, &package_name)) {
+    std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
+    return 1;
+  }
+  if (package_name == "deepseek4") {
     if (!opt.image_paths.empty() || !opt.vision_model_path.empty()) {
       std::cerr << "DeepSeek does not support image input\n";
       return 2;
@@ -1035,7 +1059,7 @@ int RunPrompt(std::span<const char* const> args) {
   }
 
 #if defined(ENGINE_ENABLE_HIP)
-  if (reader->GetMetadataString("general.architecture") == "qwen4exp") {
+  if (package_name == "qwen4exp") {
     auto model = LoadFlashNextModel(opt, *reader, model_load_start);
     if (!model)
       return 1;
@@ -1212,7 +1236,12 @@ int RunChat(std::span<const char* const> args) {
       std::move(reader_owner));
 
 #if defined(ENGINE_ENABLE_HIP)
-  if (IsDeepSeekV4Flash(*reader)) {
+  std::string package_name;
+  if (!DispatchToModelPackage(*reader, &package_name)) {
+    std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
+    return 1;
+  }
+  if (package_name == "deepseek4") {
     if (!opt.image_paths.empty() || !opt.vision_model_path.empty()) {
       std::cerr << "DeepSeek does not support image input\n";
       return 2;
@@ -1235,7 +1264,7 @@ int RunChat(std::span<const char* const> args) {
   std::unique_ptr<speculative::SpeculativeVerifier> verifier;
   std::shared_ptr<models::qwen38_flash_next::Model> flash_model;
   std::unique_ptr<models::qwen38_flash_next::Session> flash_session;
-  if (reader->GetMetadataString("general.architecture") == "qwen4exp") {
+  if (package_name == "qwen4exp") {
     flash_model = LoadFlashNextModel(opt, *reader, model_load_start);
     if (!flash_model)
       return 1;

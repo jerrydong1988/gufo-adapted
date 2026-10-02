@@ -32,6 +32,8 @@ class QwenTokenizer;
 
 namespace gufo::server {
 
+class TextModelRunner;
+
 enum class TextSpeculativeBackend : std::uint8_t {
   kDisabled,
   kDFlash,
@@ -126,6 +128,7 @@ public:
   [[nodiscard]] ReasoningOptions reasoning_defaults() const override;
   [[nodiscard]] InitialOutputState initial_output_state(
       const ChatRequest& request) const override;
+  [[nodiscard]] models::common::OutputDialect output_dialect() const override;
   void set_model_id(const std::string& model_id);
   void set_sampling_defaults(std::size_t max_tokens,
                              const sampling::SamplingConfig& sampling);
@@ -151,7 +154,7 @@ public:
       const CancellationCheck& is_cancelled = {},
       bool stream_output = false) override;
 
-  Result chat(const std::vector<tokenization::ChatMessage>& messages,
+  Result chat(const std::vector<models::common::ChatMessage>& messages,
               std::size_t max_tokens, const sampling::SamplingConfig& sampling,
               const CancellationCheck& is_cancelled = {});
 
@@ -159,6 +162,16 @@ public:
   [[nodiscard]] std::size_t count_tokens(std::string_view text) const override;
 
 private:
+#if defined(ENGINE_ENABLE_HIP)
+  /// Installs a package-built runner with a scheduler and pool, replacing
+  /// any previously loaded model.
+  bool InstallRunner(std::shared_ptr<TextModelRunner> runner,
+                     const std::string& model_id, bool supports_image_input,
+                     std::uint32_t max_context, std::size_t session_count,
+                     TextPrefillPolicy prefill_policy,
+                     TextSchedulerPolicy scheduler_policy,
+                     TextDiskCacheConfig disk_cache_config, std::string* error);
+#endif
   struct Impl;
   std::unique_ptr<Impl> impl_;
 };

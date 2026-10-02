@@ -12,6 +12,7 @@
 #include "src/cli/serve/inference_backend.hpp"
 #include "src/core/gguf_identity.hpp"
 #include "src/core/image.hpp"
+#include "src/models/qwen/chat_template.hpp"
 #include "src/models/qwen/hip/executor.hpp"
 #include "src/models/qwen38_flash_next/engine.hpp"
 
@@ -36,7 +37,7 @@ server::ChatRequest ImageRequest(const std::filesystem::path& image) {
   server::ChatRequest request;
   // This 16-token recognition check evaluates the answer, not a thinking trace.
   request.reasoning.enabled = false;
-  request.messages.emplace_back(tokenization::ChatRole::kUser,
+  request.messages.emplace_back(models::common::ChatRole::kUser,
                                 "Describe the dominant color of this image, "
                                 "then explain it in a full sentence.");
   request.messages.back().images.push_back(
@@ -249,7 +250,7 @@ int main(int argc, char** argv) {
         ImageRequest(images / "red.png"), ImageRequest(images / "blue.png"),
         ImageRequest(images / "blue-wide.png"), server::ChatRequest{}};
     requests[3].messages.emplace_back(
-        tokenization::ChatRole::kUser,
+        models::common::ChatRole::kUser,
         "Continue counting from one, with commas between the numbers.");
     requests[3].reasoning.enabled = false;
     auto ar = load(false);
@@ -342,10 +343,10 @@ int main(int argc, char** argv) {
             "image root changed after cancellation or cache eviction");
     references[0] = root_replay;
     auto continuation = requests[0];
-    continuation.messages.emplace_back(tokenization::ChatRole::kAssistant,
+    continuation.messages.emplace_back(models::common::ChatRole::kAssistant,
                                        references[0].text);
     continuation.messages.emplace_back(
-        tokenization::ChatRole::kUser,
+        models::common::ChatRole::kUser,
         "What color did you see? Explain in one sentence.");
     auto multi_image = requests[0];
     multi_image.messages.back().content =

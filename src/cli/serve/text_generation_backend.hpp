@@ -15,7 +15,8 @@
 
 #include "src/core/reasoning.hpp"
 #include "src/core/sampling.hpp"
-#include "src/models/qwen/chat_template.hpp"
+#include "src/models/common/chat.hpp"
+#include "src/models/common/output_dialect.hpp"
 #include "src/models/qwen/tokenizer.hpp"
 
 namespace gufo::server {
@@ -93,11 +94,11 @@ struct ChatRequest {
   };
 
   ChatRequest() = default;
-  explicit ChatRequest(std::vector<tokenization::ChatMessage> chat_messages)
+  explicit ChatRequest(std::vector<models::common::ChatMessage> chat_messages)
       : messages(std::move(chat_messages)) {}
 
-  std::vector<tokenization::ChatMessage> messages;
-  std::vector<tokenization::ChatTool> tools;
+  std::vector<models::common::ChatMessage> messages;
+  std::vector<models::common::ChatTool> tools;
   std::string client_id{"anonymous"};
   ToolChoice tool_choice{ToolChoice::kAuto};
   ReasoningOptions reasoning;
@@ -229,6 +230,11 @@ public:
   [[nodiscard]] virtual InitialOutputState initial_output_state(
       const ChatRequest&) const {
     return InitialOutputState::kAuto;
+  }
+  /// Output dialect the HTTP layer parses generations through. Backends
+  /// with a loaded model return its runner descriptor dialect.
+  [[nodiscard]] virtual models::common::OutputDialect output_dialect() const {
+    return {};
   }
 
   virtual Result complete(

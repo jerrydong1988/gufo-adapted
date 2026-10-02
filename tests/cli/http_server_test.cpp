@@ -20,6 +20,7 @@
 
 #include "src/cli/serve/logging.hpp"
 #include "src/core/platform/socket.hpp"
+#include "src/models/qwen/chat_template.hpp"
 
 namespace {
 
@@ -596,7 +597,7 @@ void TestCompatibilityRequests() {
   assert(response.member_str("status") == "completed");
   const auto messages = server.backend->LastCall().chat.messages;
   assert(messages.size() == 2);
-  assert(messages[0].role == gufo::tokenization::ChatRole::kSystem &&
+  assert(messages[0].role == gufo::models::common::ChatRole::kSystem &&
          messages[0].content == "Be concise." && messages[1].content == "hi");
   for (const auto limit : {1, 2}) {
     const auto streaming = server.Post(

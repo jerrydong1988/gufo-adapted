@@ -23,6 +23,8 @@
 #include "src/core/crypto/sha256.hpp"
 #include "src/core/gguf_reader.hpp"
 #include "src/core/sampling.hpp"
+#include "src/models/common/register_packages.hpp"
+#include "src/models/common/registry.hpp"
 #include "src/models/deepseek_v4_flash/dspark_sampler.hpp"
 #include "src/models/deepseek_v4_flash/engine.hpp"
 #include "src/models/qwen38_flash_next/engine.hpp"
@@ -354,8 +356,16 @@ bool ValidatePrefill(hip::QwenGpuExecutor& executor,
          sequential_token == batched_token;
 }
 
-bool IsDeepSeekV4Flash(const core::GgufReader& reader) {
-  return reader.GetMetadataString("general.architecture") == "deepseek4";
+bool DispatchToModelPackage(const core::GgufReader& reader,
+                            std::string* package_name) {
+  models::common::RegisterAllModelPackages();
+  const models::common::TextModelPackage* package =
+      models::common::TextModelRegistry::Global().FindForReader(reader);
+  if (package == nullptr) {
+    return false;
+  }
+  *package_name = package->Name();
+  return true;
 }
 
 std::vector<int> MakeDeepSeekBenchmarkTokens(
@@ -883,9 +893,9 @@ int RunDeepSeekBenchmark(
   return 0;
 }
 
-bool IsQwen38FlashNext(const core::GgufReader& reader) {
-  return reader.GetMetadataString("general.architecture") == "qwen4exp";
-}
+// Model dispatch resolves through the package registry; the legacy
+// per-architecture benchmark harnesses stay until they migrate into their
+// packages (see docs/plans/model-modularity.md).
 
 // Teacher-forced logit dump through the decode arithmetic: every schedule
 // feeds the same tokens in chunks of its cycling widths (1 = decode step,
@@ -1435,10 +1445,15 @@ int RunBench(std::span<const char* const> args) {
       std::move(reader_owner));
 
 #if defined(ENGINE_ENABLE_HIP)
-  if (IsDeepSeekV4Flash(*reader)) {
+  std::string package_name;
+  if (!DispatchToModelPackage(*reader, &package_name)) {
+    std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
+    return 1;
+  }
+  if (package_name == "deepseek4") {
     return RunDeepSeekBenchmark(opt, reader, model_load_start);
   }
-  if (IsQwen38FlashNext(*reader)) {
+  if (package_name == "qwen4exp") {
     return RunQwen38FlashNextBenchmark(opt, reader, model_load_start);
   }
 

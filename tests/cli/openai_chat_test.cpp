@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "src/core/json.hpp"
+#include "src/models/qwen/chat_template.hpp"
 
 namespace {
 
@@ -43,6 +44,10 @@ public:
     return request.reasoning.enabled.value_or(false)
                ? InitialOutputState::kReasoning
                : InitialOutputState::kContent;
+  }
+  [[nodiscard]] gufo::models::common::OutputDialect output_dialect()
+      const override {
+    return dialect;
   }
 
   Result complete(std::string_view, std::size_t,
@@ -162,6 +167,7 @@ public:
   float last_temperature{0.0F};
   gufo::sampling::SamplingConfig last_sampling;
   std::optional<gufo::server::TextGenerationErrorCode> reject_on_start;
+  gufo::models::common::OutputDialect dialect;
 
 private:
   std::mutex mutex;
@@ -1947,7 +1953,7 @@ void TestResponsesImages() {
              *user.images[0].bytes == std::vector<std::uint8_t>({1, 2, 3}) &&
              *user.images[1].bytes == std::vector<std::uint8_t>({4, 5, 6}),
          "Responses user images preserve order and transport bytes");
-  Expect(tool.role == gufo::tokenization::ChatRole::kTool &&
+  Expect(tool.role == gufo::models::common::ChatRole::kTool &&
              tool.name == "read" && tool.content == "tool" &&
              tool.images.size() == 1 && tool.images[0].offset == 4 &&
              *tool.images[0].bytes == std::vector<std::uint8_t>({7, 8, 9}),
@@ -2170,12 +2176,13 @@ void TestResponsesFunctionTools() {
             continued.messages[1].content == "I'll check." &&
             continued.messages[1].tool_calls.size() == 2,
         "Assistant reasoning, text and calls share a single template message");
-    Expect(continued.messages[2].role == gufo::tokenization::ChatRole::kTool &&
-               continued.messages[2].content == "Sunny" &&
-               continued.messages[2].name == "get_weather" &&
-               continued.messages[2].tool_call_id ==
-                   output[2].member_str("call_id"),
-           "Tool results preserve identity and text");
+    Expect(
+        continued.messages[2].role == gufo::models::common::ChatRole::kTool &&
+            continued.messages[2].content == "Sunny" &&
+            continued.messages[2].name == "get_weather" &&
+            continued.messages[2].tool_call_id ==
+                output[2].member_str("call_id"),
+        "Tool results preserve identity and text");
     backend.pieces = {"Both cities are sunny."};
     const auto answer = gufo::server::CreateOpenAiResponse(
         Request("{}"), backend, continued, 96, {}, false);
@@ -2821,7 +2828,120 @@ void TestMalformedToolDiagnostics() {
   }
 }
 
+void TestOutputDialectDelimiters() {
+  FakeBackend backend;
+  backend.dialect.think_start = "[think]";
+  backend.dialect.think_end = "[/think]";
+  backend.pieces = {"[think]custom reasoning[/think]\n\n", "Forty-two."};
+  const auto response = gufo::server::HandleOpenAiChat(Request(R"({
+        "model":"test-model",
+        "messages":[{"role":"user","content":"What is six times seven?"}],
+        "reasoning_effort":"high",
+        "stream":false
+      })"),
+                                                       backend);
+  Expect(response.status == 200, "Dialect reasoning request is accepted");
+  Expect(response.body.find(R"("reasoning_content":"custom reasoning")") !=
+             std::string::npos,
+         "Custom think delimiters split reasoning from content");
+  Expect(response.body.find(R"("content":"Forty-two.")") != std::string::npos,
+         "Answer after custom delimiters stays visible");
+
+  FakeBackend streamed;
+  streamed.dialect.think_start = "[think]";
+  streamed.dialect.think_end = "[/think]";
+  streamed.pieces = {"Check", " carefully", "[/thi", "nk]\n\n", "Done"};
+  auto stream_response = gufo::server::HandleOpenAiChat(Request(R"({
+        "model":"test-model",
+        "messages":[{"role":"user","content":"Check it."}],
+        "reasoning_effort":"xhigh",
+        "stream":true
+      })"),
+                                                        streamed);
+  Expect(stream_response.status == 200,
+         "Streaming dialect request is accepted");
+  std::string output;
+  stream_response.streaming_body([&](std::string_view chunk) {
+    output.append(chunk);
+    return true;
+  });
+  Expect(output.find(R"("reasoning_content":"Check")") != std::string::npos,
+         "Streaming custom delimiters use reasoning deltas");
+  Expect(output.find(R"("content":"Done")") != std::string::npos,
+         "Streaming answer switches to content after custom think end");
+
+  FakeBackend plain;
+  plain.dialect.think_start = {};
+  plain.dialect.think_end = {};
+  plain.pieces = {"<think>not reasoning</think>answer"};
+  const auto inert = gufo::server::HandleOpenAiChat(Request(R"({
+        "model":"test-model",
+        "messages":[{"role":"user","content":"hello"}],
+        "stream":false
+      })"),
+                                                    plain);
+  Expect(inert.status == 200, "Empty-dialect request is accepted");
+  Expect(inert.body.find("reasoning_content") == std::string::npos,
+         "Empty delimiters disable reasoning parsing");
+  Expect(inert.body.find(R"("content":"<think>not reasoning</think>answer")") !=
+             std::string::npos,
+         "Think markup stays verbatim without delimiters");
+}
+
+void TestOutputDialectToolProtocols() {
+  const char* tools = R"("tools":[{
+          "type":"function",
+          "function":{
+            "name":"get_weather",
+            "description":"Get weather",
+            "parameters":{
+              "type":"object",
+              "properties":{"city":{"type":"string"}},
+              "required":["city"]
+            }
+          }
+        }])";
+  FakeBackend dsml_only;
+  dsml_only.dialect.qwen_tool_calls = false;
+  dsml_only.pieces = {
+      "<tool_call>\n<function=get_weather>\n<parameter=city>\nRome\n"
+      "</parameter>\n</function>\n</tool_call>",
+  };
+  const auto ignored = gufo::server::HandleOpenAiChat(
+      Request(
+          std::string(R"({"model":"test-model","messages":[{"role":"user",)") +
+          R"("content":"weather"}],"stream":false,)" + tools + "}"),
+      dsml_only);
+  Expect(ignored.status == 200, "DSML-only request is accepted");
+  Expect(ignored.body.find(R"("finish_reason":"stop")") != std::string::npos,
+         "Disabled Qwen protocol is not a tool call");
+  Expect(ignored.body.find("tool_calls") == std::string::npos,
+         "Qwen markup stays invisible to a DSML-only dialect");
+
+  FakeBackend qwen_only;
+  qwen_only.dialect.dsml_tool_calls = false;
+  qwen_only.pieces = {
+      "<｜DSML｜tool_calls｜>\n"
+      "<｜DS｜invoke name=\"get_weather\">\n"
+      "<｜DS｜parameter name=\"city\" string=\"true\">Rome</｜DS｜parameter>\n"
+      "</｜DS｜invoke>\n"
+      "</｜DSML｜tool_calls｜>",
+  };
+  const auto skipped = gufo::server::HandleOpenAiChat(
+      Request(
+          std::string(R"({"model":"test-model","messages":[{"role":"user",)") +
+          R"("content":"weather"}],"stream":false,)" + tools + "}"),
+      qwen_only);
+  Expect(skipped.status == 200, "Qwen-only request is accepted");
+  Expect(skipped.body.find(R"("finish_reason":"stop")") != std::string::npos,
+         "Disabled DSML protocol is not a tool call");
+  Expect(skipped.body.find(R"("name":"get_weather")") == std::string::npos,
+         "DSML markup stays invisible to a Qwen-only dialect");
+}
+
 int main() {
+  TestOutputDialectDelimiters();
+  TestOutputDialectToolProtocols();
   TestMalformedToolDiagnostics();
   TestMultilineToolEdits();
   TestQwenDeclaredTypes();

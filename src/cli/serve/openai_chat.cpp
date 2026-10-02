@@ -44,7 +44,7 @@ struct ParsedChatRequest {
 struct ParsedToolCall {
   std::string id;
   std::string name;
-  std::vector<tokenization::ChatMessage::ToolArgument> arguments;
+  std::vector<models::common::ChatMessage::ToolArgument> arguments;
 };
 
 struct ParsedGeneration {
@@ -59,6 +59,29 @@ constexpr std::array<std::string_view, 7> kToolMarkers{
     "<DSML｜tool_calls｜>", "<DSML｜tool_calls>",     "<tool_calls｜>",
     "<tool_calls>",
 };
+
+constexpr std::array<std::string_view, 1> kQwenToolMarkers{
+    "<tool_call>",
+};
+
+constexpr std::array<std::string_view, 6> kDsmlToolMarkers{
+    "<｜DSML｜tool_calls｜>", "<｜DSML｜tool_calls>", "<DSML｜tool_calls｜>",
+    "<DSML｜tool_calls>",     "<tool_calls｜>",       "<tool_calls>",
+};
+
+[[nodiscard]] std::span<const std::string_view> ActiveToolMarkers(
+    const models::common::OutputDialect& dialect) {
+  if (dialect.qwen_tool_calls && dialect.dsml_tool_calls) {
+    return {kToolMarkers.data(), kToolMarkers.size()};
+  }
+  if (dialect.qwen_tool_calls) {
+    return {kQwenToolMarkers.data(), kQwenToolMarkers.size()};
+  }
+  if (dialect.dsml_tool_calls) {
+    return {kDsmlToolMarkers.data(), kDsmlToolMarkers.size()};
+  }
+  return {};
+}
 
 long long Now() {
   return static_cast<long long>(std::time(nullptr));
@@ -130,24 +153,24 @@ bool IsKnownRole(std::string_view role) {
          role == "assistant" || role == "tool";
 }
 
-tokenization::ChatRole ParseRole(std::string_view role) {
+models::common::ChatRole ParseRole(std::string_view role) {
   if (role == "system") {
-    return tokenization::ChatRole::kSystem;
+    return models::common::ChatRole::kSystem;
   }
   if (role == "developer") {
-    return tokenization::ChatRole::kDeveloper;
+    return models::common::ChatRole::kDeveloper;
   }
   if (role == "assistant") {
-    return tokenization::ChatRole::kAssistant;
+    return models::common::ChatRole::kAssistant;
   }
   if (role == "tool") {
-    return tokenization::ChatRole::kTool;
+    return models::common::ChatRole::kTool;
   }
-  return tokenization::ChatRole::kUser;
+  return models::common::ChatRole::kUser;
 }
 
 bool ParseContent(const json::Value* content,
-                  tokenization::ChatMessage* message,
+                  models::common::ChatMessage* message,
                   core::ImageReadBudget& budget, std::string* error,
                   bool responses = false) {
   auto* output = &message->content;
@@ -182,8 +205,8 @@ bool ParseContent(const json::Value* content,
         }
       }
       const bool image_role =
-          message->role == tokenization::ChatRole::kUser ||
-          (responses && message->role == tokenization::ChatRole::kTool);
+          message->role == models::common::ChatRole::kUser ||
+          (responses && message->role == models::common::ChatRole::kTool);
       if (!image_role || url == nullptr || !url->is_string() ||
           message->images.size() >= 16) {
         *error = responses ? "input_image requires a user message or function "
@@ -249,7 +272,7 @@ bool RenderableToolName(std::string_view name) {
 }
 
 bool ParseArguments(std::string_view arguments,
-                    std::vector<tokenization::ChatMessage::ToolArgument>* out,
+                    std::vector<models::common::ChatMessage::ToolArgument>* out,
                     std::string* error) {
   json::Value parsed;
   try {
@@ -274,7 +297,7 @@ bool ParseArguments(std::string_view arguments,
 }
 
 bool ParseHistoricalFunction(const json::Value& function,
-                             tokenization::ChatMessage::ToolCall* call,
+                             models::common::ChatMessage::ToolCall* call,
                              std::string* error) {
   const auto* name = function.find("name");
   const auto* arguments = function.find("arguments");
@@ -294,7 +317,8 @@ bool ParseHistoricalFunction(const json::Value& function,
   return ParseArguments(arguments->str(), &call->arguments, error);
 }
 
-bool ParseMessage(const json::Value& value, tokenization::ChatMessage* message,
+bool ParseMessage(const json::Value& value,
+                  models::common::ChatMessage* message,
                   core::ImageReadBudget& budget, std::string* error) {
   if (!value.is_object()) {
     *error = "each message must be an object";
@@ -313,7 +337,7 @@ bool ParseMessage(const json::Value& value, tokenization::ChatMessage* message,
   }
   if (const json::Value* reasoning = value.find("reasoning_content");
       reasoning != nullptr && !reasoning->is_null()) {
-    if (message->role != tokenization::ChatRole::kAssistant ||
+    if (message->role != models::common::ChatRole::kAssistant ||
         !reasoning->is_string()) {
       *error =
           "'reasoning_content' is only valid as a string on assistant "
@@ -328,7 +352,7 @@ bool ParseMessage(const json::Value& value, tokenization::ChatMessage* message,
   if (tool_calls == nullptr || tool_calls->is_null()) {
     return true;
   }
-  if (message->role != tokenization::ChatRole::kAssistant ||
+  if (message->role != models::common::ChatRole::kAssistant ||
       !tool_calls->is_array()) {
     *error = "'tool_calls' is only valid as an array on assistant messages";
     return false;
@@ -344,7 +368,7 @@ bool ParseMessage(const json::Value& value, tokenization::ChatMessage* message,
       *error = "assistant tool calls require a function object";
       return false;
     }
-    tokenization::ChatMessage::ToolCall call;
+    models::common::ChatMessage::ToolCall call;
     call.id = item.member_str("id");
     if (!ParseHistoricalFunction(*function, &call, error)) {
       return false;
@@ -355,7 +379,7 @@ bool ParseMessage(const json::Value& value, tokenization::ChatMessage* message,
 }
 
 bool ParseTools(const json::Value* tools,
-                std::vector<tokenization::ChatTool>* output,
+                std::vector<models::common::ChatTool>* output,
                 std::string* error) {
   if (tools == nullptr || tools->is_null()) {
     return true;
@@ -386,7 +410,7 @@ bool ParseTools(const json::Value* tools,
       params_src = src->find("parametersJsonSchema");
     }
 
-    tokenization::ChatTool tool;
+    models::common::ChatTool tool;
     tool.name = src->member_str("name");
     tool.description = src->member_str("description");
     if (!RenderableToolName(tool.name)) {
@@ -633,7 +657,7 @@ std::optional<HttpResponse> ParseRequest(const HttpRequest& request,
   }
   core::ImageReadBudget image_budget;
   for (const auto& item : messages->items()) {
-    tokenization::ChatMessage message;
+    models::common::ChatMessage message;
     std::string parse_error;
     if (!ParseMessage(item, &message, image_budget, &parse_error)) {
       return Error(400, "Bad Request", std::move(parse_error),
@@ -834,9 +858,10 @@ std::optional<json::Value> TryParseJson(std::string_view value) noexcept {
 }
 
 std::size_t EarliestMarker(std::string_view text,
+                           const models::common::OutputDialect& dialect,
                            std::string_view* marker = nullptr) {
   std::size_t earliest = std::string_view::npos;
-  for (const auto candidate : kToolMarkers) {
+  for (const auto candidate : ActiveToolMarkers(dialect)) {
     const std::size_t position = text.find(candidate);
     if (position < earliest) {
       earliest = position;
@@ -848,16 +873,18 @@ std::size_t EarliestMarker(std::string_view text,
   return earliest;
 }
 
-std::size_t HeldMarkerPrefix(std::string_view text) {
+std::size_t HeldMarkerPrefix(std::string_view text,
+                             const models::common::OutputDialect& dialect) {
+  const auto markers = ActiveToolMarkers(dialect);
   std::size_t maximum_marker = 0;
-  for (const auto marker : kToolMarkers) {
+  for (const auto marker : markers) {
     maximum_marker = std::max(maximum_marker, marker.size());
   }
   const std::size_t maximum =
       std::min(text.size(), maximum_marker > 0 ? maximum_marker - 1 : 0);
   for (std::size_t length = maximum; length > 0; --length) {
     const std::string_view suffix = text.substr(text.size() - length);
-    if (std::ranges::any_of(kToolMarkers, [&](std::string_view marker) {
+    if (std::ranges::any_of(markers, [&](std::string_view marker) {
           return marker.starts_with(suffix);
         })) {
       return length;
@@ -867,7 +894,7 @@ std::size_t HeldMarkerPrefix(std::string_view text) {
 }
 
 std::string ArgumentsJson(
-    std::span<const tokenization::ChatMessage::ToolArgument> arguments) {
+    std::span<const models::common::ChatMessage::ToolArgument> arguments) {
   json::Value object = json::Value::object();
   for (const auto& argument : arguments) {
     if (argument.is_string) {
@@ -1147,7 +1174,7 @@ struct ToolParsing {
 };
 
 ToolParsing ParseQwenCalls(std::string_view text,
-                           std::span<const tokenization::ChatTool> tools,
+                           std::span<const models::common::ChatTool> tools,
                            std::vector<ParsedToolCall>* calls) {
   constexpr std::string_view start = "<tool_call>";
   constexpr std::string_view end = "</tool_call>";
@@ -1419,7 +1446,7 @@ ToolParsing ParseDsmlCalls(std::string_view text,
         break;
       }
       if (parameter_name.has_value()) {
-        tokenization::ChatMessage::ToolArgument argument{
+        models::common::ChatMessage::ToolArgument argument{
             .name = *parameter_name,
             .value = std::string(Trim(text.substr(
                 parameter_tag_end + 1, parameter_end - parameter_tag_end - 1))),
@@ -1457,7 +1484,7 @@ ToolParsing ParseDsmlCalls(std::string_view text,
   return parsing;
 }
 
-bool RecognizeTools(std::span<const tokenization::ChatTool> tools,
+bool RecognizeTools(std::span<const models::common::ChatTool> tools,
                     ChatRequest::ToolChoice choice) {
   return !tools.empty() && choice != ChatRequest::ToolChoice::kNone;
 }
@@ -1465,31 +1492,35 @@ bool RecognizeTools(std::span<const tokenization::ChatTool> tools,
 ParsedGeneration ParseGeneration(
     std::string_view raw,
     TextGenerationBackend::InitialOutputState initial_output_state,
-    std::span<const tokenization::ChatTool> tools,
-    ChatRequest::ToolChoice choice, bool enforce_required) {
+    std::span<const models::common::ChatTool> tools,
+    ChatRequest::ToolChoice choice, bool enforce_required,
+    const models::common::OutputDialect& dialect) {
   ParsedGeneration parsed;
   std::string_view content = raw;
   const bool recognize_tools = RecognizeTools(tools, choice);
-  const auto tool_marker = [recognize_tools](std::string_view text) {
-    return recognize_tools ? EarliestMarker(text) : std::string_view::npos;
+  const auto tool_marker = [recognize_tools, &dialect](std::string_view text) {
+    return recognize_tools ? EarliestMarker(text, dialect)
+                           : std::string_view::npos;
   };
 
-  constexpr std::string_view kThinkStart = "<think>";
-  constexpr std::string_view kThinkEnd = "</think>";
+  const std::string_view think_start_delim = dialect.think_start;
+  const std::string_view think_end_delim = dialect.think_end;
   if (initial_output_state ==
       TextGenerationBackend::InitialOutputState::kReasoning) {
-    if (content.starts_with(kThinkStart)) {
-      content.remove_prefix(kThinkStart.size());
+    if (!think_start_delim.empty() && content.starts_with(think_start_delim)) {
+      content.remove_prefix(think_start_delim.size());
     }
-    // Only </think> ends the thinking phase. A model may quote tool
-    // markers (for example a `<tool_call>` opener inside damaged file
+    // Only the closing delimiter ends the thinking phase. A model may quote
+    // tool markers (for example a `<tool_call>` opener inside damaged file
     // contents) while reasoning; such markers are reasoning data, not the
     // start of a call, and must not truncate reasoning or leak it into
     // visible output. Without a closing delimiter no call has started yet,
     // so a tool request keeps the whole output as reasoning. This also
     // skips the required-call check below: a cut-off mid-reasoning is
     // reported through the finish reason, not as an unsatisfied choice.
-    const std::size_t think_end = content.find(kThinkEnd);
+    const std::size_t think_end = think_end_delim.empty()
+                                      ? std::string_view::npos
+                                      : content.find(think_end_delim);
     if (think_end == std::string_view::npos && recognize_tools) {
       parsed.reasoning_content = std::string(Trim(content));
       return parsed;
@@ -1508,7 +1539,7 @@ ParsedGeneration ParseGeneration(
     } else {
       parsed.reasoning_content =
           std::string(Trim(content.substr(0, think_end)));
-      content.remove_prefix(think_end + kThinkEnd.size());
+      content.remove_prefix(think_end + think_end_delim.size());
       while (!content.empty() &&
              (content.front() == '\n' || content.front() == '\r')) {
         content.remove_prefix(1);
@@ -1516,21 +1547,26 @@ ParsedGeneration ParseGeneration(
       parsed.text = std::string(content);
     }
   } else {
-    const std::size_t think_start = content.find(kThinkStart);
+    const std::size_t think_start = think_start_delim.empty()
+                                        ? std::string_view::npos
+                                        : content.find(think_start_delim);
     if (think_start != std::string_view::npos &&
         tool_marker(content) > think_start) {
-      const std::size_t think_content_start = think_start + kThinkStart.size();
+      const std::size_t think_content_start =
+          think_start + think_start_delim.size();
       // Quoted markers inside the thinking span are data, as above; only
-      // </think> closes the span. (Streaming delta parity for this
-      // inline-span path is out of scope: the streaming filter only
+      // the closing delimiter ends the span. (Streaming delta parity for
+      // this inline-span path is out of scope: the streaming filter only
       // enters thinking from a leading delimiter, never from content.)
       const std::size_t think_end =
-          content.find(kThinkEnd, think_content_start);
+          think_end_delim.empty()
+              ? std::string_view::npos
+              : content.find(think_end_delim, think_content_start);
       if (think_end != std::string_view::npos) {
         parsed.reasoning_content = std::string(Trim(content.substr(
             think_content_start, think_end - think_content_start)));
         std::string_view remaining =
-            content.substr(think_end + kThinkEnd.size());
+            content.substr(think_end + think_end_delim.size());
         if (remaining.starts_with("\n")) {
           remaining.remove_prefix(1);
         }
@@ -1562,13 +1598,15 @@ ParsedGeneration ParseGeneration(
     // A native output uses one call protocol. Feeding its JSON argument strings
     // through the other parser would reinterpret literal examples as calls
     // after the primary parser has consumed them.
-    const bool qwen_format = text_from_tools.starts_with("<tool_call>");
+    const bool qwen_format =
+        dialect.qwen_tool_calls && text_from_tools.starts_with("<tool_call>");
+    const bool dsml_format = dialect.dsml_tool_calls && !qwen_format;
     const auto qwen =
         qwen_format ? ParseQwenCalls(text_from_tools, tools, &parsed.tool_calls)
                     : ToolParsing{};
     const auto deepseek =
-        qwen_format ? ToolParsing{}
-                    : ParseDsmlCalls(text_from_tools, &parsed.tool_calls);
+        dsml_format ? ParseDsmlCalls(text_from_tools, &parsed.tool_calls)
+                    : ToolParsing{};
     malformed = qwen.malformed_frames != 0 || deepseek.malformed_frames != 0;
     const auto parsed_call_count = parsed.tool_calls.size();
     std::erase_if(parsed.tool_calls, [&](const auto& call) {
@@ -1726,13 +1764,15 @@ public:
 
   StreamingTextFilter(
       TextGenerationBackend::InitialOutputState initial_output_state,
-      EmitCallback emit_piece, bool recognize_tools)
+      EmitCallback emit_piece, bool recognize_tools,
+      models::common::OutputDialect dialect)
       : emit_piece_(std::move(emit_piece)),
         require_think_end_(
             recognize_tools &&
             initial_output_state ==
                 TextGenerationBackend::InitialOutputState::kReasoning),
-        recognize_tools_(recognize_tools) {
+        recognize_tools_(recognize_tools),
+        dialect_(std::move(dialect)) {
     if (initial_output_state ==
         TextGenerationBackend::InitialOutputState::kReasoning) {
       state_ = State::kThinking;
@@ -1752,34 +1792,40 @@ public:
     pending_.append(piece);
 
     if (state_ == State::kInitial) {
-      constexpr std::string_view kThinkStart = "<think>";
-      std::string_view view = pending_;
-      while (!view.empty() &&
-             std::isspace(static_cast<unsigned char>(view.front())) != 0) {
-        view.remove_prefix(1);
-      }
-      if (view.empty()) {
-        return true;
-      }
-      if (kThinkStart.starts_with(view)) {
-        if (view == kThinkStart) {
-          state_ = State::kThinking;
-          pending_.clear();
+      if (dialect_.think_start.empty()) {
+        state_ = State::kContent;
+      } else {
+        const std::string_view think_start = dialect_.think_start;
+        std::string_view view = pending_;
+        while (!view.empty() &&
+               std::isspace(static_cast<unsigned char>(view.front())) != 0) {
+          view.remove_prefix(1);
         }
-        return true;
+        if (view.empty()) {
+          return true;
+        }
+        if (think_start.starts_with(view)) {
+          if (view == think_start) {
+            state_ = State::kThinking;
+            pending_.clear();
+          }
+          return true;
+        }
+        state_ = State::kContent;
       }
-      state_ = State::kContent;
     }
 
     if (state_ == State::kThinking) {
-      constexpr std::string_view kThinkEnd = "</think>";
-      const std::size_t end_pos = pending_.find(kThinkEnd);
-      // Thinking tool requests end reasoning only at </think>: a quoted
-      // marker arriving before the delimiter is reasoning data, so it is
-      // streamed as reasoning instead of starting tool capture early.
+      const std::string_view think_end = dialect_.think_end;
+      const std::size_t end_pos =
+          think_end.empty() ? std::string::npos : pending_.find(think_end);
+      // Thinking tool requests end reasoning only at the closing delimiter:
+      // a quoted marker arriving before the delimiter is reasoning data,
+      // so it is streamed as reasoning instead of starting tool capture
+      // early.
       const auto marker = require_think_end_ || !recognize_tools_
                               ? std::string::npos
-                              : EarliestMarker(pending_);
+                              : EarliestMarker(pending_, dialect_);
       if (marker < end_pos) {
         if (marker > 0 && !emit_piece_(pending_.substr(0, marker), true))
           return false;
@@ -1793,17 +1839,20 @@ public:
           return false;
         }
         std::string_view remaining = pending_;
-        remaining.remove_prefix(end_pos + kThinkEnd.size());
+        remaining.remove_prefix(end_pos + think_end.size());
         pending_ = std::string(remaining);
         state_ = State::kContent;
         trim_reasoning_separator_ = true;
       } else {
         std::size_t held = require_think_end_ || !recognize_tools_
                                ? 0
-                               : HeldMarkerPrefix(pending_);
-        for (std::size_t len = std::min(pending_.size(), kThinkEnd.size() - 1);
+                               : HeldMarkerPrefix(pending_, dialect_);
+        for (std::size_t len =
+                 think_end.empty()
+                     ? 0
+                     : std::min(pending_.size(), think_end.size() - 1);
              len > 0; --len) {
-          if (kThinkEnd.starts_with(pending_.substr(pending_.size() - len))) {
+          if (think_end.starts_with(pending_.substr(pending_.size() - len))) {
             held = std::max(held, len);
             break;
           }
@@ -1827,8 +1876,9 @@ public:
         pending_.erase(0, first);
         trim_reasoning_separator_ = false;
       }
-      const std::size_t marker =
-          recognize_tools_ ? EarliestMarker(pending_) : std::string::npos;
+      const std::size_t marker = recognize_tools_
+                                     ? EarliestMarker(pending_, dialect_)
+                                     : std::string::npos;
       if (marker != std::string::npos) {
         if (marker > 0 && !emit_piece_(pending_.substr(0, marker), false)) {
           return false;
@@ -1840,7 +1890,7 @@ public:
       }
 
       const std::size_t held =
-          recognize_tools_ ? HeldMarkerPrefix(pending_) : 0;
+          recognize_tools_ ? HeldMarkerPrefix(pending_, dialect_) : 0;
       const std::size_t ready = pending_.size() - held;
       if (ready > 0 && !emit_piece_(pending_.substr(0, ready), false)) {
         return false;
@@ -1880,6 +1930,7 @@ private:
   EmitCallback emit_piece_;
   bool require_think_end_{false};
   bool recognize_tools_{false};
+  models::common::OutputDialect dialect_;
   core::Utf8Decoder decoder_;
   std::string raw_;
   std::string pending_;
@@ -2124,7 +2175,8 @@ HttpResponse NonStreamingResponse(
       decoder.Push(result.text, true), initial_output_state, request.chat.tools,
       request.chat.tool_choice,
       !result.cancelled &&
-          result.finish_reason == TextGenerationBackend::FinishReason::kStop);
+          result.finish_reason == TextGenerationBackend::FinishReason::kStop,
+      backend.output_dialect());
 
   json::Value response = json::Value::object();
   response["id"] = RandomId("chatcmpl-");
@@ -2190,7 +2242,7 @@ HttpResponse StreamingResponse(
           },
       .streaming_body =
           [request, generation = std::move(generation), id, created, model,
-           initial_output_state,
+           initial_output_state, dialect = backend.output_dialect(),
            stream_log](const HttpResponse::BodyWriter& writer) {
             json::Value role_delta = json::Value::object();
             role_delta["role"] = "assistant";
@@ -2217,7 +2269,8 @@ HttpResponse StreamingResponse(
                       Sse(ChoiceChunk(id, created, model, std::move(delta))));
                   return connected;
                 },
-                RecognizeTools(request.chat.tools, request.chat.tool_choice));
+                RecognizeTools(request.chat.tools, request.chat.tool_choice),
+                dialect);
 
             try {
               const auto result = generation->Wait([&](std::string_view piece) {
@@ -2235,7 +2288,8 @@ HttpResponse StreamingResponse(
                   filter.raw(), initial_output_state, request.chat.tools,
                   request.chat.tool_choice,
                   result.finish_reason ==
-                      TextGenerationBackend::FinishReason::kStop);
+                      TextGenerationBackend::FinishReason::kStop,
+                  dialect);
               if (!filter.Finish(generated.hide_tool_markup)) {
                 return;
               }
@@ -2372,18 +2426,18 @@ bool ParseOpenAiResponseChat(const json::Value& body, ChatRequest* chat,
       return false;
     }
     chat->messages.push_back(
-        {tokenization::ChatRole::kSystem, instructions->str(), "", ""});
+        {models::common::ChatRole::kSystem, instructions->str(), "", ""});
   }
   core::ImageReadBudget image_budget;
   const auto read_content = [&](const json::Value* value,
-                                tokenization::ChatMessage* message) {
+                                models::common::ChatMessage* message) {
     return value != nullptr && !value->is_null() &&
            ParseContent(value, message, image_budget, error, true);
   };
   const auto* input = body.find("input");
   if (input != nullptr && input->is_string() && !input->str().empty()) {
     chat->messages.push_back(
-        {tokenization::ChatRole::kUser, input->str(), "", ""});
+        {models::common::ChatRole::kUser, input->str(), "", ""});
     return true;
   }
   *error =
@@ -2395,7 +2449,7 @@ bool ParseOpenAiResponseChat(const json::Value& body, ChatRequest* chat,
     if (!item.is_object())
       return false;
     const auto type = item.member_str("type", "message");
-    tokenization::ChatMessage message;
+    models::common::ChatMessage message;
     if (type == "reasoning") {
       const auto* summary = item.find("summary");
       const auto* encrypted = item.find("encrypted_content");
@@ -2403,7 +2457,7 @@ bool ParseOpenAiResponseChat(const json::Value& body, ChatRequest* chat,
           (encrypted != nullptr && !encrypted->is_null()) ||
           item.contains("content"))
         return false;
-      message.role = tokenization::ChatRole::kAssistant;
+      message.role = models::common::ChatRole::kAssistant;
       for (const auto& part : summary->items()) {
         const auto* text = part.find("text");
         if (part.member_str("type") != "summary_text" || text == nullptr ||
@@ -2412,14 +2466,14 @@ bool ParseOpenAiResponseChat(const json::Value& body, ChatRequest* chat,
         message.thought += text->str();
       }
     } else if (type == "function_call") {
-      message.role = tokenization::ChatRole::kAssistant;
-      tokenization::ChatMessage::ToolCall call;
+      message.role = models::common::ChatRole::kAssistant;
+      models::common::ChatMessage::ToolCall call;
       call.id = item.member_str("call_id");
       if (call.id.empty() || !ParseHistoricalFunction(item, &call, error))
         return false;
       message.tool_calls.push_back(std::move(call));
     } else if (type == "function_call_output") {
-      message.role = tokenization::ChatRole::kTool;
+      message.role = models::common::ChatRole::kTool;
       message.tool_call_id = item.member_str("call_id");
       if (message.tool_call_id.empty() ||
           !read_content(item.find("output"), &message))
@@ -2449,9 +2503,9 @@ bool ParseOpenAiResponseChat(const json::Value& body, ChatRequest* chat,
     }
     // Reasoning, text and calls from one assistant turn are separate Responses
     // items, but must share one assistant message in the model's chat template.
-    if (message.role == tokenization::ChatRole::kAssistant &&
+    if (message.role == models::common::ChatRole::kAssistant &&
         !chat->messages.empty() &&
-        chat->messages.back().role == tokenization::ChatRole::kAssistant) {
+        chat->messages.back().role == models::common::ChatRole::kAssistant) {
       auto& previous = chat->messages.back();
       previous.content += message.content;
       previous.thought += message.thought;
@@ -2477,7 +2531,8 @@ HttpResponse CreateOpenAiResponse(const HttpRequest& request,
   auto stream_log = std::make_shared<HttpResponse::StreamLog>();
   auto timing = std::make_shared<std::string>();
   const auto run = [generation, initial, model = backend.model_id(), stream_log,
-                    timing, chat, parallel_tool_calls](
+                    timing, chat, parallel_tool_calls,
+                    dialect = backend.output_dialect()](
                        const HttpResponse::BodyWriter& writer) {
     ResponsesOutput output(model, chat, parallel_tool_calls, writer);
     if (!output.Begin()) {
@@ -2492,7 +2547,7 @@ HttpResponse CreateOpenAiResponse(const HttpRequest& request,
           generation->Cancel();
           return false;
         },
-        RecognizeTools(chat.tools, chat.tool_choice));
+        RecognizeTools(chat.tools, chat.tool_choice), dialect);
     try {
       const auto result = writer
                               ? generation->Wait([&](std::string_view piece) {
@@ -2519,7 +2574,8 @@ HttpResponse CreateOpenAiResponse(const HttpRequest& request,
       }
       const auto generated = ParseGeneration(
           filter.raw(), initial, chat.tools, chat.tool_choice,
-          result.finish_reason == TextGenerationBackend::FinishReason::kStop);
+          result.finish_reason == TextGenerationBackend::FinishReason::kStop,
+          dialect);
       if (!parallel_tool_calls && generated.tool_calls.size() > 1)
         throw TextGenerationError(
             TextGenerationErrorCode::kToolChoiceUnsatisfied,

@@ -17,6 +17,7 @@
 #include "src/cli/serve/continuation_cache.hpp"
 #include "src/cli/serve/text_generation_backend.hpp"
 #include "src/core/sampling.hpp"
+#include "src/models/common/output_dialect.hpp"
 
 namespace gufo::server {
 
@@ -103,6 +104,9 @@ struct TextRunnerDescriptor {
   std::uint32_t max_context{0};
   TextRunnerCapabilities capabilities;
   std::optional<TextRunnerPersistenceDescriptor> persistence;
+  /// Output dialect the HTTP layer parses through. Model-owned: packages
+  /// with different delimiters or tool protocols declare them here.
+  models::common::OutputDialect output_dialect{};
 };
 
 /// Optional byte claims made before state allocation.

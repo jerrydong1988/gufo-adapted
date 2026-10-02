@@ -218,6 +218,40 @@ add_library(gufo_logging STATIC src/cli/serve/logging.cpp)
 target_include_directories(gufo_logging PUBLIC ${PROJECT_SOURCE_DIR})
 target_compile_features(gufo_logging PUBLIC cxx_std_20)
 
+# Shared text-serving runtime: cache, runner pool, and scheduler. Model
+# packages adapt their engines to TextModelRunner and link this library,
+# so per-model serve adapters live with their model instead of inside the
+# inference backend translation unit.
+add_library(gufo_text_runtime STATIC
+  src/cli/serve/continuation_cache.cpp
+  src/cli/serve/continuation_disk_store.cpp
+  src/cli/serve/text_model_runner.cpp
+  src/cli/serve/text_generation_scheduler.cpp
+)
+target_include_directories(gufo_text_runtime PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(gufo_text_runtime PUBLIC gufo_logging gufo_core)
+
+# Text model packages: per-model TextModelRunner adapters plus the registry
+# that exposes them to serve, prompt, and bench. Serving adapters require
+# the HIP backend; the registry itself builds everywhere.
+add_library(gufo_model_packages STATIC
+  src/models/common/registry.cpp
+  src/models/common/register_packages.cpp
+)
+target_include_directories(gufo_model_packages PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(gufo_model_packages PUBLIC gufo_text_runtime gufo_core)
+if(ENGINE_ENABLE_HIP)
+  target_sources(gufo_model_packages PRIVATE
+    src/models/qwen/serve_runner.cpp
+    src/models/deepseek_v4_flash/serve_runner.cpp
+    src/models/qwen38_flash_next/serve_runner.cpp
+  )
+  target_link_libraries(gufo_model_packages PUBLIC gufo_deepseek_v4_flash
+    gufo_qwen38_flash_next)
+endif()
+# Bench/prompt dispatch resolves through the package registry.
+target_link_libraries(gufo_llm_cli PUBLIC gufo_model_packages)
+
 add_library(gufo_http STATIC
   src/cli/serve/image_api.cpp
   src/cli/serve/audio_asr_api.cpp
@@ -240,14 +274,10 @@ add_executable(gufo
   src/cli/transcribe/transcribe.cpp
   src/cli/video/video.cpp
   src/cli/serve/serve.cpp
-  src/cli/serve/continuation_cache.cpp
-  src/cli/serve/continuation_disk_store.cpp
-  src/cli/serve/text_model_runner.cpp
-  src/cli/serve/text_generation_scheduler.cpp
   src/cli/serve/inference_backend.cpp
   src/eval/http_client.cpp
 )
-target_link_libraries(gufo PRIVATE gufo_diagnostics gufo_core gufo_llm_cli gufo_http CURL::libcurl)
+target_link_libraries(gufo PRIVATE gufo_diagnostics gufo_core gufo_llm_cli gufo_http gufo_text_runtime gufo_model_packages CURL::libcurl)
 target_compile_definitions(gufo PRIVATE
   GUFO_VERSION="${GUFO_VERSION}"
   GUFO_EVAL_SOURCE_DATA="${CMAKE_CURRENT_SOURCE_DIR}/tests/models/deepseek_v4_flash/fixtures/antirez-ds4.json"
@@ -344,6 +374,7 @@ if (BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/tools/logit_eval_test.py)
   set_tests_properties(logit_eval_test PROPERTIES LABELS "cpu;quality;tools")
 
+  add_subdirectory(tests/models/common)
   add_subdirectory(tests/models/qwen)
   add_subdirectory(tests/models/qwen27b)
   gufo_qwen3_asr_register_tests()
@@ -444,29 +475,22 @@ if (BUILD_TESTING)
   endif()
 
   add_executable(continuation_cache_test
-    tests/cli/continuation_cache_test.cpp
-    src/cli/serve/continuation_cache.cpp)
-  target_link_libraries(continuation_cache_test PRIVATE gufo_core)
+    tests/cli/continuation_cache_test.cpp)
+  target_link_libraries(continuation_cache_test PRIVATE gufo_text_runtime)
   add_test(NAME continuation_cache_test COMMAND continuation_cache_test)
   set_tests_properties(continuation_cache_test PROPERTIES
     LABELS "cpu;server;cache;state;lifecycle")
 
   add_executable(text_model_runner_test
-    tests/cli/text_model_runner_test.cpp
-    src/cli/serve/continuation_cache.cpp
-    src/cli/serve/continuation_disk_store.cpp
-    src/cli/serve/text_model_runner.cpp)
-  target_link_libraries(text_model_runner_test PRIVATE gufo_logging gufo_core)
+    tests/cli/text_model_runner_test.cpp)
+  target_link_libraries(text_model_runner_test PRIVATE gufo_text_runtime)
   add_test(NAME text_model_runner_test COMMAND text_model_runner_test)
   set_tests_properties(text_model_runner_test PROPERTIES
     LABELS "cpu;server;runner;cache;state;lifecycle")
 
   add_executable(continuation_disk_store_test
-    tests/cli/continuation_disk_store_test.cpp
-    src/cli/serve/continuation_disk_store.cpp
-    src/cli/serve/text_model_runner.cpp
-    src/cli/serve/continuation_cache.cpp)
-  target_link_libraries(continuation_disk_store_test PRIVATE gufo_logging gufo_core)
+    tests/cli/continuation_disk_store_test.cpp)
+  target_link_libraries(continuation_disk_store_test PRIVATE gufo_text_runtime)
   add_test(NAME continuation_disk_store_test
     COMMAND continuation_disk_store_test)
   set_tests_properties(continuation_disk_store_test PROPERTIES
@@ -479,12 +503,8 @@ if (BUILD_TESTING)
     LABELS "cpu;server;sampling")
 
   add_executable(text_generation_scheduler_test
-    tests/cli/text_generation_scheduler_test.cpp
-    src/cli/serve/continuation_cache.cpp
-    src/cli/serve/continuation_disk_store.cpp
-    src/cli/serve/text_model_runner.cpp
-    src/cli/serve/text_generation_scheduler.cpp)
-  target_link_libraries(text_generation_scheduler_test PRIVATE gufo_logging gufo_core)
+    tests/cli/text_generation_scheduler_test.cpp)
+  target_link_libraries(text_generation_scheduler_test PRIVATE gufo_text_runtime)
   add_test(NAME text_generation_scheduler_test
     COMMAND text_generation_scheduler_test)
   set_tests_properties(text_generation_scheduler_test PROPERTIES
