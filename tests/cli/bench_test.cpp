@@ -155,6 +155,72 @@ void TestInvalidWorkload() {
          "zero still disables an individual workload");
 }
 
+void TestGenericBenchCases() {
+  using gufo::cli::BenchOptions;
+  using gufo::cli::ExpandGenericBenchCases;
+  // Both sizes: the cross product runs every requested workload.
+  BenchOptions both;
+  both.n_prompts = {64, 128};
+  both.n_gens = {8};
+  const auto product = ExpandGenericBenchCases(both);
+  Expect(product.size() == 2, "cross product covers both prompt sizes");
+  Expect(product[0].prompt_len == 64 && product[0].gen_len == 8,
+         "cross product preserves sizes");
+  // `-p` without `-n`: prefill-only cases still execute the workload.
+  BenchOptions prefill_only;
+  prefill_only.n_prompts = {64};
+  prefill_only.n_gens.clear();
+  const auto prefill = ExpandGenericBenchCases(prefill_only);
+  Expect(prefill.size() == 1 && prefill[0].prompt_len == 64 &&
+             prefill[0].gen_len == 0,
+         "prompt-only expands to a prefill-only workload");
+  // `-n` without `-p`: generation-only cases decode from a fixed prefix.
+  BenchOptions gen_only;
+  gen_only.n_prompts.clear();
+  gen_only.n_gens = {8};
+  const auto gen = ExpandGenericBenchCases(gen_only);
+  Expect(gen.size() == 1 &&
+             gen[0].prompt_len == gufo::cli::kGenericBenchGenOnlyPrefixTokens &&
+             gen[0].gen_len == 8,
+         "generation-only expands to a fixed-prefix workload");
+  // No workload at all expands to nothing, so the caller must fail
+  // instead of reporting success without running inference.
+  BenchOptions empty;
+  empty.n_prompts.clear();
+  empty.n_gens.clear();
+  Expect(ExpandGenericBenchCases(empty).empty(),
+         "empty workloads expand to no cases");
+}
+
+void TestGenericBenchOptions() {
+  using gufo::cli::BenchOptions;
+  using gufo::cli::CheckGenericBenchOptions;
+  const BenchOptions defaults;
+  Expect(!CheckGenericBenchOptions(defaults).has_value(),
+         "default options are generic-compatible");
+  BenchOptions logit = defaults;
+  logit.logit_eval_path = "corpus.txt";
+  Expect(CheckGenericBenchOptions(logit).has_value(),
+         "generic bench rejects --logit-eval");
+  BenchOptions out = defaults;
+  out.logit_out = "prefix";
+  Expect(CheckGenericBenchOptions(out).has_value(),
+         "generic bench rejects --logit-out");
+  BenchOptions prefill = defaults;
+  prefill.validate_prefill_tokens = 32;
+  Expect(CheckGenericBenchOptions(prefill).has_value(),
+         "generic bench rejects --validate-prefill");
+  BenchOptions depths = defaults;
+  depths.n_depths = {1024};
+  Expect(CheckGenericBenchOptions(depths).has_value(),
+         "generic bench rejects --n-depth");
+  // The default zero depth is not a user-requested sweep.
+  BenchOptions zero_depth = defaults;
+  zero_depth.n_depths = {0};
+  Expect(!CheckGenericBenchOptions(zero_depth).has_value(),
+         "default zero depth stays generic-compatible");
+}
+
 }  // namespace
 
 int main() {
@@ -164,6 +230,8 @@ int main() {
   TestDepthOptions();
   TestInvalidDepth();
   TestInvalidWorkload();
+  TestGenericBenchCases();
+  TestGenericBenchOptions();
   std::cout << "All benchmark CLI tests passed.\n";
   return 0;
 }

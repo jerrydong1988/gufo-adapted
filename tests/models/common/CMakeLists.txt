@@ -9,3 +9,9 @@ target_link_libraries(model_ops_test PRIVATE gufo_model_packages)
 add_test(NAME model_ops_test COMMAND model_ops_test)
 set_tests_properties(model_ops_test PROPERTIES
   LABELS "cpu;models;ops")
+
+add_executable(model_validate_test validate_test.cpp)
+target_link_libraries(model_validate_test PRIVATE gufo_model_packages)
+add_test(NAME model_validate_test COMMAND model_validate_test)
+set_tests_properties(model_validate_test PROPERTIES
+  LABELS "cpu;models;validate")

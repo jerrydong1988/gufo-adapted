@@ -53,6 +53,17 @@ void PrintChatHelp(std::string_view program_name);
 [[nodiscard]] std::optional<PromptOptions> ParsePromptOptions(
     std::span<const char* const> args, std::string* error_msg = nullptr);
 
+/// True when the resolved package runs through the shared generic prompt
+/// path instead of a dedicated executor. Only the "qwen" fallback package
+/// keeps the legacy Qwen executor; every other registered package (and
+/// --generic) uses RunGenericPrompt, so registration alone provides prompt
+/// coverage. Mirrors the bench dispatch; DeepSeek and Flash-Next keep their
+/// own earlier branches and never reach this decision.
+[[nodiscard]] inline bool UseGenericPromptPath(std::string_view package_name,
+                                               bool generic_requested) {
+  return generic_requested || package_name != "qwen";
+}
+
 /// Executes the prompt CLI workflow.
 [[nodiscard]] int RunPrompt(std::span<const char* const> args);
 

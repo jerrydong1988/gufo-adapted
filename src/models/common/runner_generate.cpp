@@ -21,9 +21,8 @@ RunnerGenerateResult Generate(
   if (prompt.empty()) {
     throw std::invalid_argument("prompt must not be empty");
   }
-  if (options.max_tokens == 0) {
-    throw std::invalid_argument("max_tokens must be at least one");
-  }
+  // max_tokens == 0 means prefill-only: time the prefill and return no
+  // tokens. The generic benchmark uses this for `-p` without `-n`.
   RunnerGenerateResult result;
   result.prefill_tokens = prompt.size();
   server::TextRunnerPool pool(std::move(runner), /*state_count=*/1);

@@ -1428,6 +1428,48 @@ std::optional<BenchOptions> ParseBenchOptions(std::span<const char* const> args,
   return opt;
 }
 
+std::vector<GenericBenchCase> ExpandGenericBenchCases(const BenchOptions& opt) {
+  std::vector<GenericBenchCase> cases;
+  if (!opt.n_prompts.empty() && !opt.n_gens.empty()) {
+    for (const std::size_t prompt_len : opt.n_prompts) {
+      for (const std::size_t gen_len : opt.n_gens) {
+        cases.push_back({prompt_len, gen_len});
+      }
+    }
+    return cases;
+  }
+  if (!opt.n_prompts.empty()) {
+    // Prefill-only (`-p` without `-n`), like the specialized harnesses'
+    // pp loops when generation sizes are cleared.
+    for (const std::size_t prompt_len : opt.n_prompts) {
+      cases.push_back({prompt_len, 0});
+    }
+    return cases;
+  }
+  // Generation-only (`-n` without `-p`): decode from a fixed prefix, like
+  // the specialized harnesses' 16-token fallback prefix.
+  for (const std::size_t gen_len : opt.n_gens) {
+    cases.push_back({kGenericBenchGenOnlyPrefixTokens, gen_len});
+  }
+  return cases;
+}
+
+std::optional<std::string> CheckGenericBenchOptions(const BenchOptions& opt) {
+  if (!opt.logit_eval_path.empty() || !opt.logit_out.empty()) {
+    return "generic bench does not support --logit-eval/--logit-out; use "
+           "the model's specialized harness for logit evaluation";
+  }
+  if (opt.validate_prefill_tokens != 0) {
+    return "generic bench does not support --validate-prefill; use the "
+           "model's specialized harness for prefill validation";
+  }
+  if (opt.n_depths != std::vector<std::size_t>{0}) {
+    return "generic bench does not support --n-depth; use the model's "
+           "specialized harness for depth sweeps";
+  }
+  return std::nullopt;
+}
+
 #if defined(ENGINE_ENABLE_HIP)
 // Model-agnostic benchmark through the registered package: prefill a
 // repeated token pattern, decode, and verify the run reproduces itself.
@@ -1435,16 +1477,25 @@ std::optional<BenchOptions> ParseBenchOptions(std::span<const char* const> args,
 int RunGenericBenchmark(
     const BenchOptions& opt, const models::common::TextModelPackage& package,
     const std::chrono::steady_clock::time_point& model_load_start) {
+  if (const auto unsupported = CheckGenericBenchOptions(opt); unsupported) {
+    std::cerr << "Error: " << *unsupported << '\n';
+    return 1;
+  }
   if (opt.concurrency != std::vector<std::size_t>{1}) {
     std::cerr << "Error: generic bench supports C1 only\n";
     return 1;
   }
-  const auto max_or_zero = [](const std::vector<std::size_t>& values) {
-    return values.empty() ? std::size_t{0}
-                          : *std::max_element(values.begin(), values.end());
-  };
-  const std::size_t required_context =
-      max_or_zero(opt.n_prompts) + max_or_zero(opt.n_gens) + 1;
+  const auto cases = ExpandGenericBenchCases(opt);
+  if (cases.empty()) {
+    std::cerr << "Error: generic bench has no workload to run\n";
+    return 1;
+  }
+  std::size_t max_prompt = 0, max_gen = 0;
+  for (const auto& workload : cases) {
+    max_prompt = std::max(max_prompt, workload.prompt_len);
+    max_gen = std::max(max_gen, workload.gen_len);
+  }
+  const std::size_t required_context = max_prompt + max_gen + 1;
   if (required_context < 3 ||
       required_context > std::numeric_limits<std::uint32_t>::max()) {
     std::cerr << "Error: generic bench context is out of range\n";
@@ -1492,13 +1543,17 @@ int RunGenericBenchmark(
     std::cerr << "Error: benchmark token pattern is empty\n";
     return 1;
   }
-  std::vector<std::uint32_t> prompt_tokens(max_or_zero(opt.n_prompts));
+  std::vector<std::uint32_t> prompt_tokens(max_prompt);
   for (std::size_t i = 0; i < prompt_tokens.size(); ++i) {
     prompt_tokens[i] = pattern[i % pattern.size()];
   }
   bool all_deterministic = true;
-  for (const std::size_t prompt_len : opt.n_prompts) {
-    for (const std::size_t gen_len : opt.n_gens) {
+  for (const auto& workload : cases) {
+    // A zero gen_len is prefill-only (`-p` without `-n`); generation-only
+    // (`-n` without `-p`) decodes from the fixed expansion prefix.
+    const std::size_t prompt_len = workload.prompt_len;
+    const std::size_t gen_len = workload.gen_len;
+    {
       std::vector<double> prefill_ms, decode_ms;
       for (std::size_t rep = 0; rep < std::max<std::size_t>(1, opt.repetitions);
            ++rep) {

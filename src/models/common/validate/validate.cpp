@@ -62,6 +62,32 @@ void PrefillAll(TextModelRunner& runner, TextRunnerState& state,
   }
 }
 
+// Enforces the decode-step contract the scheduler relies on: a step must
+// either commit tokens (within the requested budget), fail, or stop. An
+// empty selection list without a stop signal means the decoder made no
+// progress, and an embedded per-selection stop without a step stop would
+// let callers decode past the stop. Violations throw so the harness
+// reports the check as failed instead of passing on empty sequences.
+void AppendDecodeSelections(const TextDecodeStep& step, std::size_t requested,
+                            std::vector<TextRunnerToken>& tokens) {
+  if (step.selections.size() > requested) {
+    throw std::runtime_error(
+        "decode step returned more selections than "
+        "requested");
+  }
+  if (step.selections.empty() && !step.stop) {
+    throw std::runtime_error(
+        "decode step returned no tokens without a stop signal");
+  }
+  for (const auto& selection : step.selections) {
+    if (selection.stop && !step.stop) {
+      throw std::runtime_error(
+          "decode step embeds a stop selection without stopping");
+    }
+    tokens.push_back(selection.token);
+  }
+}
+
 std::vector<TextRunnerToken> DecodeLoop(TextModelRunner& runner,
                                         TextRunnerState& state,
                                         const sampling::SamplingConfig& config,
@@ -75,10 +101,8 @@ std::vector<TextRunnerToken> DecodeLoop(TextModelRunner& runner,
       std::rethrow_exception(step.failure);
     }
     // Both callers use greedy sampling; the sequences must match exactly.
-    for (const auto& selection : step.selections) {
-      tokens.push_back(selection.token);
-    }
-    if (step.stop || step.selections.empty()) {
+    AppendDecodeSelections(step, max_tokens - tokens.size(), tokens);
+    if (step.stop) {
       break;
     }
   }
@@ -165,10 +189,8 @@ ValidateCheck CheckDecodeEquivalence(TextModelRunner& runner,
         if (step.failure) {
           std::rethrow_exception(step.failure);
         }
-        for (const auto& selection : step.selections) {
-          single_tokens.push_back(selection.token);
-        }
-        if (step.stop || step.selections.empty()) {
+        AppendDecodeSelections(step, 1, single_tokens);
+        if (step.stop) {
           break;
         }
       }
@@ -186,10 +208,9 @@ ValidateCheck CheckDecodeEquivalence(TextModelRunner& runner,
         if (wide.failure) {
           std::rethrow_exception(wide.failure);
         }
-        for (const auto& selection : wide.selections) {
-          multi_tokens.push_back(selection.token);
-        }
-        if (wide.stop || wide.selections.empty()) {
+        AppendDecodeSelections(
+            wide, options.decode_tokens - multi_tokens.size(), multi_tokens);
+        if (wide.stop) {
           break;
         }
       }

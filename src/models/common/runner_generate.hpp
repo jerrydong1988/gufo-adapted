@@ -37,7 +37,8 @@ struct RunnerGenerateResult {
 };
 
 /// Prefills `prompt` then decodes up to `options.max_tokens` through a
-/// single-state pool, stopping at the runner's stop signal. Throws on
+/// single-state pool, stopping at the runner's stop signal. A zero
+/// `max_tokens` times the prefill only and returns no tokens. Throws on
 /// model failure.
 [[nodiscard]] RunnerGenerateResult GenerateWithRunner(
     std::shared_ptr<server::TextModelRunner> runner,

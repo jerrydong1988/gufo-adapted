@@ -341,9 +341,22 @@ constexpr std::uint32_t kDefaultContext = 4096;
 // through the package's own chat template, prefill/decode, and stream text.
 int RunGenericPrompt(const PromptOptions& opt,
                      const models::common::TextModelPackage& package,
+                     const core::GgufReader& reader,
                      const std::chrono::steady_clock::time_point& load_start,
                      std::span<const models::common::ChatMessage> messages,
                      const std::string& rendered_prompt) {
+  if (opt.use_chat_template) {
+    // Same compatibility gate as serving and the specialized prompt paths:
+    // a rejected template prevents loading and generation. Raw prompts
+    // bypass templating, so they skip this check.
+    std::string template_error;
+    if (!package.ValidateTemplate(reader, &template_error)) {
+      std::cerr << "Unsupported chat template for package '" << package.Name()
+                << "': " << template_error << '\n';
+      PrintModelLoadTime(load_start, false);
+      return 1;
+    }
+  }
   if (!opt.image_paths.empty()) {
     std::cerr << "Error: generic prompt does not support images; use the "
                  "model's own prompt path\n";
@@ -1217,13 +1230,13 @@ int RunPrompt(std::span<const char* const> args) {
   }
   const models::common::TextModelPackage* generic_package =
       models::common::TextModelRegistry::Global().FindForReader(*reader);
-  if (opt.generic || package_name == "qwen4exp") {
+  if (UseGenericPromptPath(package_name, opt.generic)) {
     if (generic_package == nullptr) {
       std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
       return 1;
     }
-    return RunGenericPrompt(opt, *generic_package, model_load_start, messages,
-                            rendered_prompt);
+    return RunGenericPrompt(opt, *generic_package, *reader, model_load_start,
+                            messages, rendered_prompt);
   }
   int dev_count = 0;
   if (!opt.force_cpu && hipGetDeviceCount(&dev_count) == hipSuccess &&

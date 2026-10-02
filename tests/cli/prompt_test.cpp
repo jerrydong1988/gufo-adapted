@@ -166,6 +166,18 @@ void TestSamplingAndReasoningFlags() {
   assert(opt->prompt_text == "Explicit prompt text");
 }
 
+void TestGenericPromptPath() {
+  // The "qwen" fallback keeps its dedicated executor; every other
+  // registered package routes to the generic path so registration alone
+  // provides prompt coverage (a new architecture must not fall through
+  // to QwenGpuExecutor).
+  assert(!gufo::cli::UseGenericPromptPath("qwen", false));
+  assert(gufo::cli::UseGenericPromptPath("qwen", true));
+  assert(gufo::cli::UseGenericPromptPath("qwen4exp", true));
+  assert(gufo::cli::UseGenericPromptPath("review-new-architecture", false));
+  assert(gufo::cli::UseGenericPromptPath("review-new-architecture", true));
+}
+
 int main() {
   TestDefaultOptions();
   TestExplicitFlags();
@@ -173,6 +185,7 @@ int main() {
   TestFlashMtpFlags();
   TestImageFlags();
   TestInvalidFlags();
+  TestGenericPromptPath();
   std::cout << "All prompt CLI tests passed.\n";
   return 0;
 }
