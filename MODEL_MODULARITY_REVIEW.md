@@ -8,7 +8,7 @@ validation harness. The moved model adapters appear behavior-preserving, and all
 seven focused CPU tests passed. These findings concern cases the existing tests
 do not cover.
 
-This is a review report. No production fixes were made.
+This is a review report. Production fixes for all five findings landed in commit bc91e46; see its commit message for the per-finding summary and validation evidence.
 
 ## 1. Newly registered architectures fall through to Qwen in ordinary prompt
 
