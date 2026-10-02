@@ -205,6 +205,34 @@ struct TextRunnerDecode {
 /// Prefill and Advance are the only model execution work units. SelectNext
 /// exposes the already-computed frontier token separately so streaming does
 /// not wait for the following decode forward pass.
+///
+/// State contract: the shared runtime owns scheduling, memory budgets, and
+/// snapshot lifetimes, but every architecture keeps its own continuation
+/// state behind TextRunnerState. A state implementation must honor:
+///
+/// - Positions are token counts. CheckpointPosition reports how many prompt
+///   tokens the state has consumed; snapshots capture exactly that prefix.
+///   Rewinding means restoring state, never just moving a position: a
+///   recurrent layer must restore its accumulated hidden state, a sliding
+///   window must recover evicted entries from the snapshot, and so on.
+/// - Snapshots are immutable and exact. Snapshot may run on a capture worker
+///   while the state is frozen; it must not mutate shared execution scratch.
+///   RestoreOrFork replaces the target state's context with the snapshot;
+///   callers then run PreparePrefixReuse for the restored prefix (and
+///   SetPromptContext first when the prefix carries multimodal inputs).
+/// - Speculative state commits or rolls back inside the runner. DecodeStep
+///   returns only committed tokens; rejected proposals never leak into the
+///   sampler history or the visible token stream. Greedy output must be
+///   byte-identical whether speculation ran or not.
+/// - Multimodal identity travels with the prompt context, not the tokens.
+///   Image snapshots require the matching immutable prompt prefix first;
+///   pixel data is never serialized. IdentityBefore keys cache reuse.
+/// - Capabilities are honest. Advertise snapshot/fork only when
+///   Snapshot/RestoreOrFork round-trip exactly; multi_token_decode only
+///   when DecodeStep can return more than one committed token per call.
+///   The common validation harness (src/models/common/validate/) checks
+///   determinism, decode-path equivalence, and snapshot fidelity through
+///   this interface.
 class TextModelRunner {
 public:
   TextModelRunner() = default;

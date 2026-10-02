@@ -9,6 +9,8 @@
 
 /// Scalar CPU operators for the reference model: one row at a time, every
 /// format decoded on the fly. Correctness oracle only; nothing here is tuned.
+/// The pure-math operators forward to the shared canonical implementations
+/// in src/models/common/ops; the parity test pins bit-identity.
 namespace gufo::models::qwen38_flash_next::cpu {
 
 /// Decodes one row of `t` (expert `e`) into `out` (t.cols floats).

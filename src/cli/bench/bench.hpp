@@ -33,6 +33,7 @@ struct BenchOptions {
   std::uint32_t min_draft_tokens{1};
   sampling::SamplingConfig sampling{.seed = 0};
   bool verbose{false};
+  bool generic{false};
 };
 
 void PrintBenchHelp(std::string_view program_name);

@@ -17,6 +17,22 @@ add_qwen38_flash_next_test(ngram gufo_qwen38_flash_next "cpu")
 add_qwen38_flash_next_test(mtp_sampling gufo_core "cpu")
 add_qwen38_flash_next_test(prompt_lookup gufo_core "cpu")
 
+# Bit-exact parity between the model oracle and the shared canonical ops.
+add_executable(qwen38_flash_next_ops_parity_test ops_parity_test.cpp)
+target_link_libraries(qwen38_flash_next_ops_parity_test PRIVATE
+  gufo_qwen38_flash_next_reference gufo_model_packages)
+add_test(NAME qwen38_flash_next.ops_parity
+  COMMAND qwen38_flash_next_ops_parity_test)
+set_tests_properties(qwen38_flash_next.ops_parity PROPERTIES
+  LABELS "qwen38_flash_next;cpu;models;ops")
+add_dependencies(qwen38_flash_next_tests qwen38_flash_next_ops_parity_test)
+
+# Common package-validation harness against real weights. Takes
+# --model/--mtp-model like session_test; skips without weights.
+add_executable(qwen38_flash_next_validate_test EXCLUDE_FROM_ALL validate_test.cpp)
+target_link_libraries(qwen38_flash_next_validate_test PRIVATE
+  gufo_model_packages)
+
 add_executable(qwen38_flash_next_reference_probe EXCLUDE_FROM_ALL reference_probe.cpp)
 target_link_libraries(qwen38_flash_next_reference_probe PRIVATE
   gufo_qwen38_flash_next_reference)

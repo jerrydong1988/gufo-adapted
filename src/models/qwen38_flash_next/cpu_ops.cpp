@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/core/quant/ggml_dequant.hpp"
+#include "src/models/common/ops/scalar.hpp"
 
 namespace gufo::models::qwen38_flash_next::cpu {
 namespace {
@@ -120,56 +121,31 @@ void MatVec(const TensorRef& t, std::uint64_t e, std::span<const float> x,
 }
 
 void RmsNorm(std::span<float> x, const float* w, float eps) {
-  double ss = 0.0;
-  for (float v : x) {
-    ss += static_cast<double>(v) * v;
-  }
-  const float scale =
-      1.0F /
-      std::sqrt(static_cast<float>(ss / static_cast<double>(x.size())) + eps);
-  for (std::size_t i = 0; i < x.size(); ++i) {
-    x[i] = x[i] * scale * (w != nullptr ? w[i] : 1.0F);
+  if (w == nullptr) {
+    common::ops::RmsNormUnweighted(x, eps);
+  } else {
+    common::ops::RmsNorm(x, {w, x.size()}, eps);
   }
 }
 
 void L2Norm(std::span<float> x, float eps) {
-  double ss = 0.0;
-  for (float v : x) {
-    ss += static_cast<double>(v) * v;
-  }
-  const float scale = 1.0F / std::sqrt(static_cast<float>(ss) + eps);
-  for (float& v : x) {
-    v *= scale;
-  }
+  common::ops::L2Norm(x, eps);
 }
 
 float Sigmoid(float x) noexcept {
-  return 1.0F / (1.0F + std::exp(-x));
+  return common::ops::Sigmoid(x);
 }
 float Silu(float x) noexcept {
-  return x * Sigmoid(x);
+  return common::ops::Silu(x);
 }
 float Softplus(float x) noexcept {
-  return x > 20.0F ? x : std::log1p(std::exp(x));
+  return common::ops::Softplus(x);
 }
 
 void Rope(float* x, std::uint32_t heads, std::uint32_t head_dim,
           std::uint32_t rotary_dim, std::uint32_t pos, float theta) {
-  const std::uint32_t half = rotary_dim / 2;
-  for (std::uint32_t h = 0; h < heads; ++h) {
-    float* v = x + static_cast<std::size_t>(h) * head_dim;
-    for (std::uint32_t i = 0; i < half; ++i) {
-      const float freq = std::pow(theta, -2.0F * static_cast<float>(i) /
-                                             static_cast<float>(rotary_dim));
-      const float angle = static_cast<float>(pos) * freq;
-      const float c = std::cos(angle);
-      const float s = std::sin(angle);
-      const float a = v[i];
-      const float b = v[i + half];
-      v[i] = a * c - b * s;
-      v[i + half] = a * s + b * c;
-    }
-  }
+  common::ops::RopeNeox({x, static_cast<std::size_t>(heads) * head_dim}, heads,
+                        head_dim, rotary_dim, pos, theta);
 }
 
 }  // namespace gufo::models::qwen38_flash_next::cpu

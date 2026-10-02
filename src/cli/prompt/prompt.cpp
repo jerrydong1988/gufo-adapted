@@ -18,8 +18,15 @@
 #include "src/core/crypto/sha256.hpp"
 #include "src/core/gguf_reader.hpp"
 #include "src/core/image.hpp"
+#include "src/models/common/model_package.hpp"
 #include "src/models/common/register_packages.hpp"
 #include "src/models/common/registry.hpp"
+#include "src/models/common/runner_generate.hpp"
+
+#if defined(ENGINE_ENABLE_HIP)
+#include "src/cli/serve/text_generation_backend.hpp"
+#include "src/cli/serve/text_model_runner.hpp"
+#endif
 #include "src/models/deepseek_v4_flash/dspark_sampler.hpp"
 #include "src/models/deepseek_v4_flash/engine.hpp"
 #include "src/models/qwen/chat_template.hpp"
@@ -209,6 +216,10 @@ static void RegisterTextOptions(ArgParser& parser, PromptOptions& opt,
   parser.AddFlag("-v", "--verbose",
                  "Print detailed timing, latency breakdown, and tok/s metrics",
                  "General", &opt.verbose);
+  parser.AddFlag("", "--generic",
+                 "Generate through the registered model package instead of "
+                 "a model-specific path",
+                 "General", &opt.generic);
 
   if (command == "prompt") {
     parser.JoinPositionals(&opt.prompt_text);
@@ -325,6 +336,122 @@ tokenization::ChatTemplateOptions QwenPromptOptions(
 
 #if defined(ENGINE_ENABLE_HIP)
 constexpr std::uint32_t kDefaultContext = 4096;
+
+// Model-agnostic prompt through the registered package: render the prompt
+// through the package's own chat template, prefill/decode, and stream text.
+int RunGenericPrompt(const PromptOptions& opt,
+                     const models::common::TextModelPackage& package,
+                     const std::chrono::steady_clock::time_point& load_start,
+                     std::span<const models::common::ChatMessage> messages,
+                     const std::string& rendered_prompt) {
+  if (!opt.image_paths.empty()) {
+    std::cerr << "Error: generic prompt does not support images; use the "
+                 "model's own prompt path\n";
+    return 1;
+  }
+  models::common::SpeculativeRequest speculative;
+  if (opt.speculative_backend == "mtp") {
+    speculative.backend = models::common::SpeculativeBackend::kMtp;
+    speculative.draft_model_path = opt.mtp_model_path;
+  } else if (opt.speculative_backend == "dflash2") {
+    speculative.backend = models::common::SpeculativeBackend::kDFlash;
+    speculative.draft_model_path = opt.dflash_model_path;
+    speculative.draft_policy =
+        opt.draft_policy == "fixed"
+            ? models::common::DraftLengthPolicy::kFixed
+            : models::common::DraftLengthPolicy::kAdaptive;
+  } else if (opt.speculative_backend == "dspark") {
+    speculative.backend = models::common::SpeculativeBackend::kDSpark;
+    speculative.draft_model_path = opt.dspark_model_path;
+  } else if (!opt.speculative_backend.empty()) {
+    std::cerr << "Error: unknown generic speculative backend\n";
+    return 1;
+  }
+  speculative.max_draft_tokens = opt.draft_tokens;
+  speculative.min_draft_tokens = opt.min_draft_tokens;
+  models::common::TextModelLoadOptions load_options;
+  load_options.model_path = opt.model_path;
+  load_options.max_context = kDefaultContext;
+  load_options.session_count = 1;
+  load_options.speculative = speculative;
+  load_options.vision_model_path = opt.vision_model_path;
+  std::string error;
+  auto loaded = package.Load(load_options, &error);
+  if (loaded == nullptr || loaded->runner == nullptr) {
+    std::cerr << "Error creating generic model: " << error << '\n';
+    PrintModelLoadTime(load_start, false);
+    return 1;
+  }
+  PrintModelLoadTime(load_start);
+  std::shared_ptr<const server::TextPromptContext> context;
+  std::size_t cache_prefix_tokens = 0;
+  std::optional<std::vector<std::uint32_t>> rendered;
+  if (opt.use_chat_template) {
+    // Reuse the messages RunPrompt already framed (system + user), so the
+    // package's own template sees the same conversation as legacy paths.
+    std::vector<models::common::ChatMessage> request_messages;
+    request_messages.reserve(messages.size());
+    for (const auto& message : messages) {
+      request_messages.push_back(message);
+    }
+    server::ChatRequest chat_request(std::move(request_messages));
+    chat_request.reasoning = PromptReasoningOptions(opt);
+    chat_request.add_vision_id = opt.add_vision_id;
+    try {
+      auto prepared = loaded->runner->PreparePrompt(chat_request);
+      if (prepared) {
+        rendered = std::move(prepared->tokens);
+        context = std::move(prepared->context);
+        cache_prefix_tokens = prepared->cache_prefix_tokens;
+      }
+    } catch (const std::exception& exception) {
+      std::cerr << "Error preparing generic prompt: " << exception.what()
+                << '\n';
+      return 1;
+    }
+  }
+  if (!rendered) {
+    rendered = loaded->runner->Tokenize(rendered_prompt);
+  }
+  if (rendered->empty() || rendered->size() >= kDefaultContext ||
+      opt.max_tokens >= kDefaultContext - rendered->size()) {
+    std::cerr
+        << "Generic prompt and output exceed the 4096-token CLI context\n";
+    return 1;
+  }
+  if (opt.display_prompt) {
+    // Echo what the user typed, not the rendered template internals.
+    std::cout << opt.prompt_text << "\n--- Generation Output ---\n";
+  }
+  models::common::RunnerGenerateOptions gen_opt;
+  gen_opt.max_tokens = opt.max_tokens;
+  gen_opt.sampling = opt.sampling;
+  models::common::RunnerGenerateResult result;
+  try {
+    if (context) {
+      server::TextPreparedPrompt prepared{*rendered, context,
+                                          cache_prefix_tokens};
+      result =
+          models::common::GenerateWithRunner(loaded->runner, prepared, gen_opt);
+    } else {
+      result = models::common::GenerateWithRunner(loaded->runner, *rendered,
+                                                  gen_opt);
+    }
+  } catch (const std::exception& exception) {
+    std::cerr << "Generic generation failed: " << exception.what() << '\n';
+    return 1;
+  }
+  std::cout << loaded->runner->Decode(result.tokens) << '\n';
+  if (opt.verbose) {
+    std::cerr << "Generated " << result.tokens.size() << " tokens ("
+              << result.tokens.size() /
+                     std::max(result.decode_ms / 1000.0, 1e-9)
+              << " tok/s, prefill " << result.prefill_ms << " ms)\n";
+    PrintTokenTrace(std::span<const tokenization::TokenId>(result.tokens));
+  }
+  (void)messages;
+  return 0;
+}
 
 std::shared_ptr<models::deepseek_v4_flash::Model> LoadDeepSeekModel(
     const PromptOptions& opt, const core::GgufReader& reader,
@@ -1059,7 +1186,7 @@ int RunPrompt(std::span<const char* const> args) {
   }
 
 #if defined(ENGINE_ENABLE_HIP)
-  if (package_name == "qwen4exp") {
+  if (package_name == "qwen4exp" && !opt.generic) {
     auto model = LoadFlashNextModel(opt, *reader, model_load_start);
     if (!model)
       return 1;
@@ -1087,6 +1214,16 @@ int RunPrompt(std::span<const char* const> args) {
       std::cerr << e.what() << '\n';
       return 1;
     }
+  }
+  const models::common::TextModelPackage* generic_package =
+      models::common::TextModelRegistry::Global().FindForReader(*reader);
+  if (opt.generic || package_name == "qwen4exp") {
+    if (generic_package == nullptr) {
+      std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
+      return 1;
+    }
+    return RunGenericPrompt(opt, *generic_package, model_load_start, messages,
+                            rendered_prompt);
   }
   int dev_count = 0;
   if (!opt.force_cpu && hipGetDeviceCount(&dev_count) == hipSuccess &&

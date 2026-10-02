@@ -28,18 +28,40 @@ Qwen-Image, for example, requires a Diffusers directory with
 `model_index.json` and component configurations such as
 `transformer/config.json`, `text_encoder/config.json`, and `vae/config.json`.
 
-Dispatch reality for GGUF text today
-(`src/cli/serve/inference_backend.cpp::InferenceBackend::load`,
-mirrored in `src/cli/bench/bench.cpp` and `src/cli/prompt/prompt.cpp`):
+Dispatch reality for GGUF text: every model family is a registered
+`TextModelPackage` (`src/models/common/model_package.hpp`). Serve, bench,
+and prompt resolve the `general.architecture` string through
+`TextModelRegistry` instead of hard-coded branches:
 
-- `general.architecture == "deepseek4"` → `deepseek_v4_flash::Model::Load`
-- `general.architecture == "qwen4exp"` → `qwen38_flash_next::Model::Load`
-- anything else → `hip::QwenGpuModel::CreateFromGguf` (the Qwen 3.x/3.8 path)
+- `deepseek4` → `deepseek_v4_flash` package
+- `qwen4exp` → `qwen38_flash_next` package
+- anything else → the `qwen` fallback package (the Qwen 3.x/3.8 path)
 
 So a new LLM either (a) extends the fallback Qwen path when the block
-structure really matches, or (b) — the normal case — gets a new
-`architecture` string plus a new `src/models/<model>` package and a new
-dispatch branch in those three call sites.
+structure really matches, or (b) — the normal case — adds a new
+`src/models/<model>` package implementing the five package methods
+(`Name`, `Architectures`, `ValidateTemplate`, `NativeContext`,
+`ValidateLoadOptions`/`Load`) plus a `TextModelRunner` adapter, and
+registers it in `src/models/common/register_packages.cpp`. No serve, bench,
+or prompt call site changes. Registration alone also provides generic
+`bench --generic` and `prompt --generic` coverage through the shared
+`GenerateWithRunner` helper, and the common validation harness in
+`src/models/common/validate/` for determinism, decode-path equivalence,
+and snapshot-fidelity checks.
+
+A package additionally declares its `OutputDialect` (reasoning delimiters
+and tool-call protocols, defaulting to today's `<think>` + Qwen/DSML
+behavior) in its runner descriptor, so the HTTP layer parses new output
+conventions without shared-code changes.
+
+Expected work by novelty:
+
+| New model introduces... | Expected work |
+|---|---|
+| Different sizes of an existing architecture | Configuration, weight mapping and validation |
+| A new arrangement of supported operations | Architecture definition + package/adapter (Step 8 is now registration) |
+| A genuinely new mathematical operation | That operation, its state behavior and a backend implementation, plus a shared scalar op when the math is reusable (`src/models/common/ops/`) |
+| New performance bottlenecks | Targeted kernel tuning behind the package, measured against the generic path |
 
 Modality reality for non-LLM models (`src/cli/serve/serve.cpp`):
 
@@ -293,50 +315,43 @@ Follow `qwen38_flash_next/engine.hpp` as the API shape:
 Keep production HIP behind `ENGINE_ENABLE_HIP`; provide a CPU stub when
 the package must link without HIP (see `qwen_image_21/model_stub.cpp`).
 
-## 8. Wire the CLI + server dispatch
+## 8. Register the model package
 
-Wire a new GGUF `architecture` into these entry points, then update flags
-and output parsing where needed:
+A new GGUF `architecture` needs one registration, not three dispatch
+branches. Implement `TextModelPackage` in the model directory (see
+`src/models/qwen/serve_runner.cpp` for the fallback shape and
+`src/models/qwen38_flash_next/serve_runner.cpp` for a specialized one),
+then register it in `src/models/common/register_packages.cpp`:
 
-1. `src/cli/serve/inference_backend.cpp` — add the
-   `general.architecture == "<myarch>"` branch: validate speculative
-   config (which backends are allowed, required `--*-model` sidecar,
-   draft-token limits), validate the chat template, call
-   `mymodel::Model::Load`, fingerprint artifacts for disk cache, then
-   delegate to the matching `load(shared_ptr<Model>, …)` overload.
-   Add the `load(shared_ptr<mymodel::Model>, …)` overload +
-   runner-state class following the DeepSeek / Flash-Next / Qwen
-   runners in the same file (fingerprint strings like
-   `model_kind=<myarch>`, `chat_template=…`, `state_abi=…`,
-   `payload_layout=…`).
-2. `src/cli/bench/bench.cpp` + `src/cli/prompt/prompt.cpp` — same
-   architecture check so `gufo bench` / `gufo prompt` / `gufo chat`
-   route to the new model (see the existing `deepseek4` / `qwen4exp`
-   branches).
-3. `src/cli/serve/serve.cpp` — only if the model needs new flags
-   (e.g. `--mtp-model`, `--mmproj`, `--think`, speculative policies).
-   One canonical long option per behavior; no aliases. Register help
-   text in `PrintServeHelp` and parsing in `RunServe` together so they
-   cannot drift.
-4. `src/cli/serve/openai_chat.cpp` — if the model introduces a different
-   reasoning/tool-call dialect, update output parsing and streaming as
-   described in Step 5, with Chat Completions and Responses coverage.
+1. `Name` / `Architectures` — the exact `general.architecture` strings,
+   plus `IsFallback` only for the Qwen catch-all.
+2. `ValidateTemplate` — reject unsupported chat templates before any
+   weights load (the serve path calls this first).
+3. `NativeContext` — native context length from the artifact, or 0.
+4. `ValidateLoadOptions` — which speculative backends are allowed, required
+   `--*-model` sidecars, draft-token limits, and disk-cache fingerprint
+   rules. Keep the historical error strings so CLI tests keep passing.
+5. `Load` — load weights and return a `TextModelRunner` adapter plus the
+   serving facts (`model_id`, `supports_image_input`, `max_context`).
+6. The runner adapter (`CreateTextRunner` in the same file): tokenize,
+   render, prefill/decode, snapshot scope, capabilities, persistence
+   identity (`model_kind=<myarch>`, `chat_template=…`, `state_abi=…`,
+   `payload_layout=…`), and the `OutputDialect` declaration.
 
-A new safetensors modality additionally needs:
+`serve llm` installs the package-built runner directly. `bench --generic`
+and `prompt --generic` exercise it without a model-specific harness;
+model-specific harnesses (DeepSeek/Flash-Next logit eval, Qwen executor
+benchmarks) stay for kernel-level work. Run the new package through the
+common validation harness (`src/models/common/validate/`) before writing
+any model-specific tests.
 
-- A service class (`AsrService` / `TtsService` / `ImageService` /
-  `VideoJobService` pattern in `src/cli/serve/`).
-- A `serve <modality>` subcommand in `serve.cpp` with `--model <DIR>`,
-  `--served-model-name`, context/queue/storage options, plus
-  `HttpServer` wiring and (where applicable) a `gufo transcribe` /
-  `gufo video` CLI.
-- Capability reporting (`/v1/models`, `/props`, `supports_image_input`)
-  reflecting what is actually loaded.
-
-Vision rule: vision needs a compatible loaded encoder/projector. Do not
-assume an F16 projector is interchangeable with BF16; document the exact
-qualified sidecar (Flash-Next uses `mmproj-BF16.gguf`, auto-discovered
-beside the model or via `--mmproj`).
+`src/cli/serve/serve.cpp` changes are only needed for new flags
+(e.g. `--mtp-model`, `--mmproj`, `--think`, speculative policies).
+One canonical long option per behavior; no aliases. Register help
+text in `PrintServeHelp` and parsing in `RunServe` together so they
+cannot drift. A different reasoning/tool-call dialect no longer touches
+`src/cli/serve/openai_chat.cpp` — declare it in `OutputDialect` (Step 5),
+with Chat Completions and Responses coverage.
 
 ## 9. Add tests (smallest covering check first)
 
@@ -523,8 +538,9 @@ their defaults, preserve Linux behavior, and record measurements in
       reasoning/tool-call output dialect covered in buffered and streaming APIs
 - [ ] Independent references (scalar CPU, official runtime, analytic fixtures
       as appropriate); heavy CPU oracles use `EXCLUDE_FROM_ALL`
-- [ ] HIP `Model`/`Session`/snapshot + per-model kernels, no shared kernels
-- [ ] `inference_backend.cpp` + `bench.cpp` + `prompt.cpp` dispatch
+- [ ] HIP `Model`/`Session`/snapshot + per-model kernels, no shared GPU kernels
+- [ ] `TextModelPackage` + `TextModelRunner` adapter + registration;
+      `OutputDialect` declared; generic `bench`/`prompt` + validation harness pass
       (+ `serve.cpp` service/flags for new modalities, `/v1/models`+`/props` honest)
 - [ ] CPU + HIP + server + model-specific numerical checks, labels + skip codes correct
 - [ ] Four docs + `docs/models/README.md` row + checker model-list entry + `THIRD_PARTY_NOTICES.md`

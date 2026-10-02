@@ -23,8 +23,18 @@
 #include "src/core/crypto/sha256.hpp"
 #include "src/core/gguf_reader.hpp"
 #include "src/core/sampling.hpp"
+#include "src/models/common/model_package.hpp"
 #include "src/models/common/register_packages.hpp"
 #include "src/models/common/registry.hpp"
+#include "src/models/common/runner_generate.hpp"
+
+#if defined(ENGINE_ENABLE_HIP)
+#include "src/cli/serve/text_model_runner.hpp"
+#endif
+
+#if defined(ENGINE_ENABLE_HIP)
+#include "src/cli/serve/text_model_runner.hpp"
+#endif
 #include "src/models/deepseek_v4_flash/dspark_sampler.hpp"
 #include "src/models/deepseek_v4_flash/engine.hpp"
 #include "src/models/qwen38_flash_next/engine.hpp"
@@ -264,6 +274,11 @@ void RegisterBenchOptions(ArgParser& parser, BenchOptions& opt,
   parser.AddFlag("-v", "--verbose",
                  "Print detailed timing, latency breakdown, and tok/s metrics",
                  "General", &opt.verbose);
+  parser.AddFlag("", "--generic",
+                 "Benchmark through the registered model package instead of "
+                 "a model-specific harness (also the default for packages "
+                 "without one)",
+                 "General", &opt.generic);
 
   parser.SetPositionalHandler(
       [&opt](std::string_view arg, std::string*) -> bool {
@@ -1413,6 +1428,133 @@ std::optional<BenchOptions> ParseBenchOptions(std::span<const char* const> args,
   return opt;
 }
 
+#if defined(ENGINE_ENABLE_HIP)
+// Model-agnostic benchmark through the registered package: prefill a
+// repeated token pattern, decode, and verify the run reproduces itself.
+// New packages get working bench coverage from registration alone.
+int RunGenericBenchmark(
+    const BenchOptions& opt, const models::common::TextModelPackage& package,
+    const std::chrono::steady_clock::time_point& model_load_start) {
+  if (opt.concurrency != std::vector<std::size_t>{1}) {
+    std::cerr << "Error: generic bench supports C1 only\n";
+    return 1;
+  }
+  const auto max_or_zero = [](const std::vector<std::size_t>& values) {
+    return values.empty() ? std::size_t{0}
+                          : *std::max_element(values.begin(), values.end());
+  };
+  const std::size_t required_context =
+      max_or_zero(opt.n_prompts) + max_or_zero(opt.n_gens) + 1;
+  if (required_context < 3 ||
+      required_context > std::numeric_limits<std::uint32_t>::max()) {
+    std::cerr << "Error: generic bench context is out of range\n";
+    return 1;
+  }
+  models::common::SpeculativeRequest speculative;
+  if (opt.speculative_backend == "mtp") {
+    speculative.backend = models::common::SpeculativeBackend::kMtp;
+    speculative.draft_model_path = opt.mtp_model_path;
+  } else if (opt.speculative_backend == "dflash2") {
+    speculative.backend = models::common::SpeculativeBackend::kDFlash;
+    speculative.draft_model_path = opt.dflash_model_path;
+    speculative.draft_policy =
+        opt.draft_policy == "fixed"
+            ? models::common::DraftLengthPolicy::kFixed
+            : models::common::DraftLengthPolicy::kAdaptive;
+  } else if (opt.speculative_backend == "dspark") {
+    speculative.backend = models::common::SpeculativeBackend::kDSpark;
+    speculative.draft_model_path = opt.dspark_model_path;
+  } else if (!opt.speculative_backend.empty()) {
+    std::cerr << "Error: unknown generic speculative backend\n";
+    return 1;
+  }
+  speculative.max_draft_tokens = opt.draft_tokens;
+  speculative.min_draft_tokens = opt.min_draft_tokens;
+  models::common::TextModelLoadOptions load_options;
+  load_options.model_path = opt.model_path;
+  load_options.max_context = static_cast<std::uint32_t>(required_context);
+  load_options.session_count = 1;
+  load_options.speculative = speculative;
+  std::string error;
+  auto loaded = package.Load(load_options, &error);
+  if (loaded == nullptr || loaded->runner == nullptr) {
+    std::cerr << "Error creating generic model: " << error << '\n';
+    PrintModelLoadTime(model_load_start, false);
+    return 1;
+  }
+  PrintModelLoadTime(model_load_start);
+  std::cout << "Generic bench through package '" << package.Name() << "'\n";
+
+  const std::vector<std::uint32_t> pattern = loaded->runner->Tokenize(
+      "The quick brown fox jumps over the lazy dog. "
+      "Strix Halo executes this deterministic benchmark sequence. ");
+  if (pattern.empty()) {
+    std::cerr << "Error: benchmark token pattern is empty\n";
+    return 1;
+  }
+  std::vector<std::uint32_t> prompt_tokens(max_or_zero(opt.n_prompts));
+  for (std::size_t i = 0; i < prompt_tokens.size(); ++i) {
+    prompt_tokens[i] = pattern[i % pattern.size()];
+  }
+  bool all_deterministic = true;
+  for (const std::size_t prompt_len : opt.n_prompts) {
+    for (const std::size_t gen_len : opt.n_gens) {
+      std::vector<double> prefill_ms, decode_ms;
+      for (std::size_t rep = 0; rep < std::max<std::size_t>(1, opt.repetitions);
+           ++rep) {
+        models::common::RunnerGenerateOptions gen_opt;
+        gen_opt.max_tokens = gen_len;
+        gen_opt.sampling = opt.sampling;
+        const std::span<const std::uint32_t> prompt(prompt_tokens.data(),
+                                                    prompt_len);
+        models::common::RunnerGenerateResult first, second;
+        try {
+          first = models::common::GenerateWithRunner(loaded->runner, prompt,
+                                                     gen_opt);
+          second = models::common::GenerateWithRunner(loaded->runner, prompt,
+                                                      gen_opt);
+        } catch (const std::exception& exception) {
+          std::cerr << "Error: generic generation failed: " << exception.what()
+                    << '\n';
+          return 1;
+        }
+        const bool deterministic = first.tokens == second.tokens;
+        all_deterministic = all_deterministic && deterministic;
+        prefill_ms.push_back(first.prefill_ms);
+        decode_ms.push_back(first.decode_ms);
+        const double prefill_tps =
+            first.prefill_tokens > 0 && first.prefill_ms > 0
+                ? 1000.0 * first.prefill_tokens / first.prefill_ms
+                : 0.0;
+        const double decode_tps =
+            !first.tokens.empty() && first.decode_ms > 0
+                ? 1000.0 * first.tokens.size() / first.decode_ms
+                : 0.0;
+        std::cout << "[generic] package=" << package.Name()
+                  << " prompt=" << prompt_len << " gen=" << first.tokens.size()
+                  << " rep=" << (rep + 1) << " prefill_ms=" << first.prefill_ms
+                  << " (" << prefill_tps
+                  << " tok/s) decode_ms=" << first.decode_ms << " ("
+                  << decode_tps << " tok/s)"
+                  << " deterministic=" << (deterministic ? "yes" : "NO")
+                  << '\n';
+      }
+      const auto prefill_stats = ComputeStats(prefill_ms);
+      const auto decode_stats = ComputeStats(decode_ms);
+      std::cout << "[generic] package=" << package.Name()
+                << " prompt=" << prompt_len << " gen=" << gen_len
+                << " prefill_ms_mean=" << prefill_stats.mean
+                << " decode_ms_mean=" << decode_stats.mean << '\n';
+    }
+  }
+  if (!all_deterministic) {
+    std::cerr << "Error: generic runs did not reproduce their tokens\n";
+    return 1;
+  }
+  return 0;
+}
+#endif
+
 int RunBench(std::span<const char* const> args) {
   std::string parse_err;
   const auto opt_res = ParseBenchOptions(args, &parse_err);
@@ -1450,11 +1592,20 @@ int RunBench(std::span<const char* const> args) {
     std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
     return 1;
   }
-  if (package_name == "deepseek4") {
+  if (package_name == "deepseek4" && !opt.generic) {
     return RunDeepSeekBenchmark(opt, reader, model_load_start);
   }
-  if (package_name == "qwen4exp") {
+  if (package_name == "qwen4exp" && !opt.generic) {
     return RunQwen38FlashNextBenchmark(opt, reader, model_load_start);
+  }
+  const models::common::TextModelPackage* package =
+      models::common::TextModelRegistry::Global().FindForReader(*reader);
+  if (opt.generic || package_name != "qwen") {
+    if (package == nullptr) {
+      std::cerr << "Error: no compiled-in model package handles this GGUF.\n";
+      return 1;
+    }
+    return RunGenericBenchmark(opt, *package, model_load_start);
   }
 
   if (opt.concurrency != std::vector<std::size_t>{1}) {

@@ -237,6 +237,9 @@ target_link_libraries(gufo_text_runtime PUBLIC gufo_logging gufo_core)
 add_library(gufo_model_packages STATIC
   src/models/common/registry.cpp
   src/models/common/register_packages.cpp
+  src/models/common/ops/scalar.cpp
+  src/models/common/runner_generate.cpp
+  src/models/common/validate/validate.cpp
 )
 target_include_directories(gufo_model_packages PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(gufo_model_packages PUBLIC gufo_text_runtime gufo_core)
@@ -251,6 +254,10 @@ if(ENGINE_ENABLE_HIP)
 endif()
 # Bench/prompt dispatch resolves through the package registry.
 target_link_libraries(gufo_llm_cli PUBLIC gufo_model_packages)
+# The Flash-Next scalar oracle forwards its pure-math operators to the
+# shared canonical implementations.
+target_link_libraries(gufo_qwen38_flash_next_reference PUBLIC
+  gufo_model_packages)
 
 add_library(gufo_http STATIC
   src/cli/serve/image_api.cpp

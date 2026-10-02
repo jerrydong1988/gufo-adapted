@@ -42,43 +42,68 @@ Status: implementation complete; `check-pr` + GPU validation running.
   call sites. Legacy per-model bench harnesses stay until Phase C.
 - [x] A7. CPU tests: registry unit tests, dialect parity tests
   (`openai_chat_test` fixtures must pass unchanged), format/docs checks.
-- [ ] A8. GPU validation: rebuild `release` + `gpu-test`, run
+- [x] A8. GPU validation: rebuild `release` + `gpu-test`, run
   `openai_chat_test`, `http_server_test`, Flash-Next prompt/bench smoke
   with `experimental/` weights, and a matched-token logit comparison
   between baseline and refactored binaries (exact equality required).
 
+Phase A validation (2026-10-02, `1631d08`, TheRock 10.0.0, gfx1151):
+
+- `check-pr`: 36/36 pass (cpu-test).
+- `openai_chat_test`, `http_server_test`, `model_registry_test`: pass on
+  both cpu-test and gpu-test presets.
+- Prompt parity (`--speculative mtp`, greedy, 32 tokens): TokenTrace
+  `sha256=3d023d32...` identical to the `c2ea1cf` baseline binary.
+- Matched-token full logits (`bench --logit-eval`, 1666-token corpus,
+  schedules `1:1,2,3,4,5,6,7,8`): all 1664 rows x 2 schedules hash-equal
+  to baseline (`logit-eval.py` MATCH on both).
+- Serve smoke via registry: buffered/streaming reasoning split, Qwen tool
+  calls, and mmproj vision input all behave as baseline.
+- `qwen_vision_serving_test` (Flash-Next + MTP + mmproj, typed-overload
+  path): pass, including cancellation/resume exactness, incremental
+  oracle with zero logit error, and disk image-identity replay.
+
 ## Phase B: reusable operations with replaceable fast paths
 
-Status: not started.
+Status: foundation complete; GPU dispatcher deferred.
 
-- [ ] B1. `src/models/common/ops/`: CPU reference implementations with
-  exact numerical contracts for embedding gather, RMSNorm, RoPE, softmax,
-  SwiGLU/GELU, and residual accumulation. Each op: analytic unit tests,
-  no HIP dependency.
-- [ ] B2. `OpBackend` selection interface: shape/dtype dispatch between a
-  correct general implementation and a specialized fast path, with a
-  measurement hook. No production model migrates until its parity tests
-  exist.
-- [ ] B3. Migrate one Flash-Next CPU reference path onto shared ops to
-  prove reuse; keep the HIP path untouched.
-- [ ] B4. Document the "correct first, specialize after measurement"
-  progression in `docs/ADDING_MODELS.md`.
+- [x] B1. `src/models/common/ops/`: canonical scalar CPU references with
+  exact numerical contracts (RMSNorm, L2Norm, Sigmoid/SiLU/Softplus,
+  SwiGLU, Softmax, NEOX RoPE) plus analytic tests. Known divergences
+  (Qwen's float64-epsilon RMSNorm, divide-form SiLU) are documented as
+  deliberate non-adoptions.
+- [x] B3. Flash-Next CPU oracle forwards its pure-math operators to the
+  shared implementations; bit-exact parity is pinned by
+  `qwen38_flash_next.ops_parity` with recorded checksums. HIP untouched.
+- [ ] B2. `OpBackend` selection interface: deferred until two models share
+  a GPU kernel with parity + measurement proofs (see `ops/README.md`).
+- [x] B4. The progression is documented in `src/models/common/ops/README.md`;
+  `bench --generic` and `prompt --generic` (via `runner_generate`) give every
+  registered package working benchmarks and smoke generation.
 
 ## Phase C: state contract + validation harness
 
-Status: not started.
+Status: complete.
 
-- [ ] C1. Document the `TextModelRunner` state contract explicitly
-  (append/share-prefix/restore, recurrent checkpoints, speculative
-  commit/undo, multimodal identity) as the core state abstraction.
-- [ ] C2. `src/models/common/validate/`: common harness driven through
-  the package interface: tokenization round-trip, prompt-render golden,
-  prefill/decode determinism, snapshot restore equality, streaming
-  equivalence, perplexity/logit fixtures.
-- [ ] C3. Wire Flash-Next into the harness; generalize `bench --logit-eval`
-  beyond its current single-model implementation.
-- [ ] C4. Update `docs/ADDING_MODELS.md` to the new work table: new sizes
-  vs new arrangements vs new ops vs new bottlenecks.
+- [x] C1. The `TextModelRunner` state contract is documented on the class
+  itself (`text_model_runner.hpp`): token-count positions, immutable exact
+  snapshots, restore-means-restore (recurrent/sliding-window state comes
+  back, not just the position), speculative commit/rollback inside the
+  runner with byte-identical greedy output, multimodal identity in the
+  prompt context, and honest capability advertisement.
+- [x] C2. `src/models/common/validate/`: harness driven through the package
+  interface — tokenize determinism, render-and-tokenize smoke,
+  single-step vs multi-token decode equivalence, and snapshot/restore
+  fidelity. Model failures report as named failed checks, not crashes.
+- [x] C3. Flash-Next wired in via `qwen38_flash_next_validate_test`
+  (weights-gated, skips without `--model`): all four checks pass on
+  `experimental/` weights with MTP. `bench --logit-eval` stays
+  model-specific by design — full-logit numerical truth belongs with the
+  model, while the common harness covers behavioral fidelity.
+- [x] C4. `docs/ADDING_MODELS.md` updated: Step 0 dispatch reality is now
+  the registry, Step 8 is package registration, the checklist requires the
+  adapter + dialect + generic paths + harness, and the novelty work table
+  matches the ideas doc.
 
 ## Working rules
 
