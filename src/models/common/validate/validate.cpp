@@ -65,8 +65,8 @@ void PrefillAll(TextModelRunner& runner, TextRunnerState& state,
 // Enforces the decode-step contract the scheduler relies on: a step must
 // either commit tokens (within the requested budget), fail, or stop. An
 // empty selection list without a stop signal means the decoder made no
-// progress, and an embedded per-selection stop without a step stop would
-// let callers decode past the stop. Violations throw so the harness
+// progress. Stop signals belong on the step, never on its selections,
+// matching the runner pool's contract. Violations throw so the harness
 // reports the check as failed instead of passing on empty sequences.
 void AppendDecodeSelections(const TextDecodeStep& step, std::size_t requested,
                             std::vector<TextRunnerToken>& tokens) {
@@ -80,9 +80,8 @@ void AppendDecodeSelections(const TextDecodeStep& step, std::size_t requested,
         "decode step returned no tokens without a stop signal");
   }
   for (const auto& selection : step.selections) {
-    if (selection.stop && !step.stop) {
-      throw std::runtime_error(
-          "decode step embeds a stop selection without stopping");
+    if (selection.stop) {
+      throw std::runtime_error("decode step embeds a stop selection");
     }
     tokens.push_back(selection.token);
   }

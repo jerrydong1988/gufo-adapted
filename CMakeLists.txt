@@ -533,6 +533,14 @@ if (BUILD_TESTING)
   add_test(NAME bench_cli_test COMMAND bench_cli_test)
   set_tests_properties(bench_cli_test PROPERTIES LABELS "cpu;server;cli")
 
+  if (ENGINE_ENABLE_HIP)
+    # Exercises the generic CLI dispatch with a fake runner; no GPU/model needed.
+    add_executable(generic_bench_cli_test tests/cli/generic_bench_test.cpp)
+    target_link_libraries(generic_bench_cli_test PRIVATE gufo_llm_cli)
+    add_test(NAME generic_bench_cli_test COMMAND generic_bench_cli_test)
+    set_tests_properties(generic_bench_cli_test PROPERTIES LABELS "cpu;models;cli")
+  endif()
+
   add_executable(video_cli_test
     tests/cli/video_test.cpp
     src/cli/video/video.cpp

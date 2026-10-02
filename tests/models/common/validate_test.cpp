@@ -29,6 +29,7 @@ enum class DecodeFault {
   kEmptyNoStop,
   kOverBudget,
   kEmbeddedStop,
+  kEmbeddedStopWithStepStop,
 };
 
 class FakeRunner : public gufo::server::TextModelRunner {
@@ -99,6 +100,8 @@ public:
         return step;
       }
       case DecodeFault::kEmbeddedStop:
+      case DecodeFault::kEmbeddedStopWithStepStop:
+        step.stop = fault_ == DecodeFault::kEmbeddedStopWithStepStop;
         step.selections.push_back({true, 7, ""});
         return step;
       case DecodeFault::kNone:
@@ -164,6 +167,7 @@ int main() {
   TestFault(DecodeFault::kEmptyNoStop, "no tokens without a stop signal");
   TestFault(DecodeFault::kOverBudget, "more selections than requested");
   TestFault(DecodeFault::kEmbeddedStop, "embeds a stop selection");
+  TestFault(DecodeFault::kEmbeddedStopWithStepStop, "embeds a stop selection");
   std::cout << "All validation harness tests passed.\n";
   return 0;
 }

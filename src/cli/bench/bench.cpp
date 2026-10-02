@@ -1496,7 +1496,7 @@ int RunGenericBenchmark(
     max_gen = std::max(max_gen, workload.gen_len);
   }
   const std::size_t required_context = max_prompt + max_gen + 1;
-  if (required_context < 3 ||
+  if (required_context < 2 ||
       required_context > std::numeric_limits<std::uint32_t>::max()) {
     std::cerr << "Error: generic bench context is out of range\n";
     return 1;
