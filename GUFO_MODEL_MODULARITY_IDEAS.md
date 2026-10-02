@@ -6,6 +6,12 @@ level, with the GPU execution planner still future work. See
 [docs/plans/model-modularity.md](docs/plans/model-modularity.md) for the
 implementation log and measured validation results.
 
+Next proposed adopter: Gemma 4 31B using the local Unsloth QAT GGUF artifacts
+and an additional conventional quantization the user plans to supply.
+The sequence below starts with independently validated text inference, then adds
+state capabilities, MTP, and vision. Artifact metadata has been inspected; Gemma
+execution in Gufo has not been implemented or validated.
+
 Legend used below: ✅ done · 🟡 partially done · ⬜ not started.
 
 A deeper redesign could make adding models substantially easier. The biggest
@@ -80,8 +86,9 @@ still need measurement.
 
 🟡 Started, GPU side deferred: per-model HIP kernels stay model-private (no
 cross-model GPU reuse, per blast-radius policy). `bench --generic` routes
-through the registered package as the correct-but-unoptimized baseline, and
-targeted tuning stays behind the package. A shape/dtype dispatching GPU
+through the registered package and exercises its existing runner, including
+any optimized kernels it uses. It is a common integration path, not an
+independent numerical reference or a separate unoptimized backend. A shape/dtype dispatching GPU
 backend is intentionally deferred until a second model needs the same op —
 building the dispatcher before then would be speculative generality.
 
@@ -107,12 +114,14 @@ state. Merely changing the token position is insufficient. Making that contract
 explicit would let scheduling and speculative decoding support grow without
 repeatedly embedding architecture knowledge in the server.
 
-✅ Done: the contract is documented on `TextModelRunner` itself
+✅ Contract foundation done: the contract is documented on `TextModelRunner` itself
 (`src/cli/serve/text_model_runner.hpp`) — token-count positions, immutable
 exact snapshots, restore-means-restore, speculative commit/rollback inside the
 runner with byte-identical greedy output, multimodal identity in the prompt
-context, honest capability advertisement — and is enforced by the validation
-harness (change 5).
+context, honest capability advertisement — with behavioral checks in the
+validation harness (change 5). Each new model still needs tests of its actual
+state transitions, including eviction and rollback boundaries; documenting the
+contract does not implement these capabilities for it.
 
 **4. Give every model a complete integration package.**
 
@@ -126,8 +135,8 @@ A model package would contain:
 
 One registration would expose that package to `serve`, `prompt` and `bench`.
 
-✅ Done: `TextModelPackage` (`src/models/common/model_package.hpp`) +
-`TextModelRegistry` implement exactly this — name, architectures,
+✅ Text integration foundation done: `TextModelPackage`
+(`src/models/common/model_package.hpp`) + `TextModelRegistry` provide name, architectures,
 `ValidateTemplate`, `NativeContext`, `ValidateLoadOptions`, `Load` — with
 the Qwen/DeepSeek/Flash-Next runners moved into per-model
 `serve_runner.cpp` files and `inference_backend.cpp` slimmed from ~3,500 to
@@ -141,11 +150,18 @@ events such as text, reasoning and tool calls. The HTTP layer would serialize
 those events. See the
 [current inference backend](src/cli/serve/inference_backend.cpp).
 
-✅ Done via `OutputDialect`: each package declares its reasoning delimiters
-and tool-call protocols in its runner descriptor; `openai_chat.cpp` parses
-through the loaded model's dialect (defaults preserve today's `<think>` +
-Qwen/DSML behavior, covered by dialect parity tests). A new dialect no
-longer touches shared HTTP code.
+🟡 Partial via `OutputDialect`: each package declares its reasoning delimiters
+and enables the existing Qwen/DSML tool-call parsers in its runner descriptor;
+`openai_chat.cpp` consumes these settings (defaults preserve today's behavior,
+covered by dialect parity tests). This is not yet an arbitrary model-owned
+output parser. Gemma's different tool syntax will require an extension, with
+streaming tests, before tool support can be advertised. Prefer a package-owned
+parser producing common events over accumulating model branches in HTTP code.
+
+Generic prompting currently rejects image inputs. Gemma vision support will
+therefore also test the shared prompt/preparation boundary. Keep ordinary text
+dispatch registration-driven, but allow small shared-interface changes when a
+new capability demonstrates the need.
 
 Weight storage would also be separate from architecture: supporting a model's
 math and supporting a particular quantization are distinct capabilities.
@@ -160,7 +176,7 @@ to establish correctness and locate the first divergent layer. Optimized
 implementations would be checked against independent references, with explicit
 numerical expectations.
 
-✅ Done: `src/models/common/validate/` drives tokenize determinism,
+✅ Behavioral harness foundation done: `src/models/common/validate/` drives tokenize determinism,
 render-and-tokenize, single-vs-multi decode equivalence, and
 snapshot/restore fidelity purely through the package interface, reporting
 the first divergent check by name. Flash-Next passes 4/4 on real weights
@@ -169,6 +185,12 @@ with MTP. Full-logit numerical truth deliberately stays model-specific:
 force every model into one numerical frame), and the refactor was proven by
 bit-identical full logits vs the pre-refactor binary (1664 rows × 2
 schedules, hash-equal).
+
+These checks are necessary but not an independent correctness oracle: two
+incorrect decode paths can agree. A new architecture needs tokenizer/template
+goldens and numerical evidence from a separate implementation using the same
+artifacts. Generic bench rejects unsupported logit-evaluation options; use a
+model-specific numerical harness instead.
 
 With those foundations, the work for a new model would look like this:
 
@@ -194,19 +216,169 @@ beyond what such a redesign can promise.
 
 ## Remaining work (in suggested order)
 
-1. ⬜ Prove the package pays off with a second adopter: move one more
-   model family (DeepSeek or the Qwen fallback path's runner) fully behind
-   the interface and confirm `serve`/`bench`/`prompt` need no shared-code
-   changes — or port a genuinely new architecture (e.g. Gemma) and measure
-   how much code truly lives in its package.
-2. ⬜ GPU execution planner (change 2's second half): introduce
-   shape/dtype dispatch behind shared ops only when two models need the
-   same GPU op; keep per-model kernels the default until then.
-3. ⬜ Architecture-as-composition (change 1's second half): execution-graph
-   building above scalar ops, so a new arrangement of existing ops needs no
-   new kernels.
-4. ⬜ Weight storage vs architecture split: quantization support declared
-   as a capability separate from the model's math.
-5. Ongoing: every shared-op adoption must keep the bit-exact parity
-   checksums green and re-run matched-token logit comparison against a
-   recorded baseline before landing.
+1. ⬜ Prove the package with a genuinely new architecture: implement Gemma 4
+   31B through the sequence below. Qwen, DeepSeek, and Flash-Next already have
+   package adapters; the next test is an independent addition, not another
+   move of existing runner code. Record how much code lives in the package and
+   which shared interfaces actually need extension.
+2. ⬜ Separate architecture from supported weight storage during that port.
+   Validate tensor names, shapes, storage types, and conversion assumptions
+   explicitly. Start with the supplied Unsloth QAT artifacts; do not require a
+   universal weight abstraction before the first model works.
+3. ⬜ Develop reusable GPU operations and architecture composition together,
+   driven by the working Gemma implementation. Extract an operation only when
+   two models need matching semantics and parity/performance proofs exist.
+   Keep model-private kernels until then. Build shape/dtype selection and
+   execution-graph planning incrementally rather than designing a complete
+   planner before the second implementation provides evidence.
+4. ⬜ Extend package boundaries where Gemma demonstrates a gap: output/tool
+   parsing, multimodal prompt preparation, and any missing state operations.
+   Keep model-specific behavior in the package and HTTP serialization shared.
+5. Ongoing: preserve shared-op parity checksums and existing-model baselines.
+   Run matched-token full-logit and perplexity checks at relevant milestones;
+   require exact equality for behavior-preserving refactors of the same
+   execution path, and declare justified numerical limits for comparisons
+   across independent implementations or intentional arithmetic changes.
+
+## Gemma candidate and artifact contract
+
+The user supplied the Unsloth QAT versions of Gemma 4 31B under
+`experimental/unsloth-gemma4-31b-qat/`. This is the inspected candidate artifact
+set, not a promise of support for every Gemma size or quantization.
+
+The user also plans to add a more conventional quantized Gemma 4 31B artifact.
+Its filename, source checkpoint, storage types, and sidecar compatibility have
+not yet been inspected. Once available, inventory both variants and choose the
+one with the simplest verified reference and kernel support for initial bring-up.
+A conventional quant is a useful first target if it reduces conversion-specific
+uncertainty; keep the Unsloth QAT set as a separate compatibility milestone.
+Do not assume the existing QAT assistant is suitable for a non-QAT target.
+
+Maintain a separate numerical baseline for each artifact. Different weights or
+quantization recipes can legitimately produce different logits; cross-quant
+comparisons assess quality and performance, not bit-exact engine correctness.
+
+Metadata and tensor-table inspection on 2026-10-02 found:
+
+| Local file | Architecture / role | Actual tensor storage | File size |
+| --- | --- | --- | --- |
+| `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf` | `gemma4`, 60-layer target | 411 Q4_0 and 422 FP32 tensors | 16.10 GiB |
+| `mtp-gemma-4-31B-it.gguf` | `gemma4-assistant`, four-layer drafter | 23 Q4_0 and 26 FP32 tensors | 0.26 GiB |
+| `mmproj-BF16.gguf` | `clip` container, `gemma4v` projector/vision encoder | 190 BF16 and 166 FP32 tensors | 1.12 GiB |
+
+These are Unsloth's QAT-derived artifacts, not an ordinary post-training
+Q4_K_XL conversion inferred from the filename. Distinguish the QAT training and
+conversion recipe from the GGUF tensor encoding: the inspected tensors use
+standard Q4_0/FP32/BF16 storage types. Do not invent a new dequantizer solely
+because the model is QAT, or assume an existing Q4_0 kernel proves the complete
+model is supported. Validate the precise conversion, tensor mapping, scaling,
+and arithmetic against these weights. The publisher describes this artifact
+family and its matching drafter in the
+[Unsloth model card](https://huggingface.co/unsloth/gemma-4-31B-it-qat-GGUF)
+and [MTP notes](https://huggingface.co/unsloth/gemma-4-31B-it-qat-GGUF/blob/main/MTP/README.md).
+
+Why this model is a useful modularity test:
+
+- It uses five sliding-attention layers followed by one full-attention layer,
+  a 1,024-token local window, and different local/global head dimensions.
+- GELU, normalization placement, positional encoding, and logit softcapping
+  must follow Gemma's math rather than inherit Qwen defaults. See
+  [Google's configuration](https://huggingface.co/google/gemma-4-31B-it/blob/main/config.json)
+  for the architectural reference; pin the matching QAT revision for numerical
+  validation.
+- Its tokenizer, chat formatting, reasoning, and tool syntax exercise the
+  package boundary beyond the existing Qwen/DSML conventions.
+- The assistant and vision components provide subsequent tests of state sharing,
+  rollback, multimodal preparation, and truthful capability reporting.
+
+File size is not peak memory use. Start at a bounded context and measure weights,
+KV state, scratch space, and optional sidecars separately. The local target
+advertises 262,144 context tokens, while the assistant advertises 131,072; verify
+supported combined limits rather than assuming the target's maximum applies to
+MTP. Metadata inspection suggests a matching set but is not runtime compatibility
+validation. Keep these sidecars distinct from the Qwen files elsewhere in
+`experimental/`.
+
+## Gemma implementation sequence
+
+### 1. Establish an independent reference and artifact manifest
+
+- Record hashes of all three files, their provenance/revisions, tensor inventory,
+  tokenizer/template identities, and supported storage types. Keep weights out
+  of Git; store reproducible manifests and small fixtures with the model.
+- Pin a llama.cpp revision that supports these Gemma 4 QAT artifacts and the
+  assistant architecture. First run the exact target GGUF with MTP and vision
+  disabled. Later validate each sidecar independently on that reference.
+- Capture tokenizer and chat-template goldens, fixed-token full logits, and a
+  small reproducible perplexity corpus. Record the reference build, backend,
+  context, sampling, and tolerances. A different BF16/non-QAT checkpoint is not
+  a like-for-like numerical baseline for this quantized target.
+- Use small analytic and layer-level fixtures to locate discrepancies before
+  attempting repeated full-model runs. Fluent generated text alone is not a
+  correctness check.
+
+### 2. Implement bounded, text-only Gemma inference
+
+- Add a `src/models/gemma4/` package with validated configuration, tensor mapping,
+  tokenizer, prompt rendering, stop/reasoning behavior, reference calculations,
+  HIP execution, and a `TextModelRunner` adapter.
+- Start with one session, a 4K context, and MTP/vision disabled. Test raw and chat
+  prompts, special tokens, and buffered/streaming responses. Explicitly reject
+  unsupported features, including tool requests until their parser is validated.
+- Register `gemma4` and exercise ordinary `prompt`, `serve`, and generic `bench`.
+  Avoid a Gemma-specific dispatch branch. Shared build/registration changes are
+  expected; additional shared semantic changes need a documented reason.
+- Match independent reference logits and perplexity under declared limits.
+  Preserve existing Qwen/Flash-Next behavior. Reuse scalar operations only when
+  their exact formulas and precision contracts match Gemma.
+
+**First milestone:** correct Gemma text inference through all three entry points,
+with independent numerical evidence and an explicit supported-artifact contract.
+A full GPU planner, MTP, and vision are not prerequisites for this milestone.
+
+### 3. Validate and extend state capabilities
+
+- Test token positions around 1,023/1,024/1,025 and across multiple local windows,
+  including chunked versus single-token prefill and full-attention layers.
+- Check cancellation and subsequent requests. When prefix reuse, snapshots,
+  restore, and fork are implemented, compare them against fresh recomputation.
+  Rewinding a position alone is insufficient after window entries are overwritten.
+- Advertise only tested capabilities; disabled reuse/snapshots are acceptable
+  during initial bring-up. Run the common harness alongside model-specific
+  state and numerical checks, recording any skipped checks explicitly.
+
+### 4. Add the Gemma assistant / MTP path
+
+- Treat `gemma4-assistant` as a distinct draft architecture integrated with the
+  target, not a drop-in Qwen MTP sidecar. Implement its target-state dependencies
+  from the pinned reference. Google's
+  [MTP description](https://ai.google.dev/gemma/docs/mtp/overview) explains its
+  dependence on target activations; the publisher's GGUF notes also describe
+  target KV-cache sharing.
+- Validate sidecar compatibility, token identities, context limits, accepted and
+  rejected drafts, partial acceptance, stop tokens, cancellation, and rollback
+  across attention-window boundaries.
+- Require greedy output parity against non-speculative execution and validate
+  sampled verification semantics separately. Check target logits/state after
+  rollback. Then measure acceptance and end-to-end throughput; sidecar presence
+  does not establish a speedup.
+
+### 5. Add vision, then expand optimization and reuse
+
+- Implement the `gemma4v` preprocessing, encoder/projector, image-token placement,
+  and multimodal attention rules. Validate intermediate outputs against the
+  reference before relying on end-to-end image descriptions.
+- Extend generic prompt preparation where needed. Test direct image attachments,
+  images in tool results, history replay, and streaming; expose image capability
+  only when the compatible encoder/projector is loaded.
+- Profile the working paths on gfx1151. Use the resulting Gemma and existing-model
+  implementations to select the first shared GPU operations and planning rules.
+  Require parity and matched end-to-end measurements for every adopter.
+- Expand context, concurrency, supported quants, and other Gemma variants as
+  separately validated work. Keep Windows and Linux build/test coverage, with
+  small independently reviewable changes throughout.
+
+Track success by correctness, performance, and integration cost: package-owned
+code, shared semantic changes, operations reused with proofs, and remaining
+model-specific kernels. The goal is evidence that future model additions become
+easier, not merely a larger collection of interfaces.
