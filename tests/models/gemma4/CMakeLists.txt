@@ -1,0 +1,16 @@
+add_executable(gemma4_protocol_test protocol_test.cpp)
+target_link_libraries(gemma4_protocol_test PRIVATE gufo_core)
+target_compile_definitions(gemma4_protocol_test PRIVATE
+  GEMMA4_FIXTURES="${PROJECT_SOURCE_DIR}/src/models/gemma4/fixtures")
+add_test(NAME gemma4_protocol_test COMMAND gemma4_protocol_test)
+set_tests_properties(gemma4_protocol_test PROPERTIES LABELS "cpu;models;gemma4")
+add_executable(gemma4_image_test image_test.cpp)
+target_link_libraries(gemma4_image_test PRIVATE gufo_core)
+target_compile_definitions(gemma4_image_test PRIVATE
+  GEMMA4_FIXTURES="${PROJECT_SOURCE_DIR}/src/models/gemma4/fixtures")
+add_test(NAME gemma4_image_test COMMAND gemma4_image_test)
+set_tests_properties(gemma4_image_test PROPERTIES LABELS "cpu;models;gemma4;vision")
+if(ENGINE_ENABLE_HIP)
+  add_executable(gemma4_validate validate.cpp)
+  target_link_libraries(gemma4_validate PRIVATE gufo_model_packages)
+endif()

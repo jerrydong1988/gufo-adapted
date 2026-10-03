@@ -1,0 +1,2208 @@
+{
+  "tokenizer": [
+    {
+      "text": "",
+      "add_special": false,
+      "tokens": []
+    },
+    {
+      "text": "",
+      "add_special": true,
+      "tokens": [
+        2
+      ]
+    },
+    {
+      "text": "Hello world!",
+      "add_special": false,
+      "tokens": [
+        9259,
+        1902,
+        236888
+      ]
+    },
+    {
+      "text": "Hello world!",
+      "add_special": true,
+      "tokens": [
+        2,
+        9259,
+        1902,
+        236888
+      ]
+    },
+    {
+      "text": " hello  world ",
+      "add_special": false,
+      "tokens": [
+        29104,
+        138,
+        12392,
+        236743
+      ]
+    },
+    {
+      "text": " hello  world ",
+      "add_special": true,
+      "tokens": [
+        2,
+        29104,
+        138,
+        12392,
+        236743
+      ]
+    },
+    {
+      "text": "a\nb\n\n\nend",
+      "add_special": false,
+      "tokens": [
+        236746,
+        107,
+        236763,
+        109,
+        643
+      ]
+    },
+    {
+      "text": "a\nb\n\n\nend",
+      "add_special": true,
+      "tokens": [
+        2,
+        236746,
+        107,
+        236763,
+        109,
+        643
+      ]
+    },
+    {
+      "text": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+      "add_special": false,
+      "tokens": [
+        137,
+        115
+      ]
+    },
+    {
+      "text": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+      "add_special": true,
+      "tokens": [
+        2,
+        137,
+        115
+      ]
+    },
+    {
+      "text": "1234567890 3.14159",
+      "add_special": false,
+      "tokens": [
+        236770,
+        236778,
+        236800,
+        236812,
+        236810,
+        236825,
+        236832,
+        236828,
+        236819,
+        236771,
+        236743,
+        236800,
+        236761,
+        236770,
+        236812,
+        236770,
+        236810,
+        236819
+      ]
+    },
+    {
+      "text": "1234567890 3.14159",
+      "add_special": true,
+      "tokens": [
+        2,
+        236770,
+        236778,
+        236800,
+        236812,
+        236810,
+        236825,
+        236832,
+        236828,
+        236819,
+        236771,
+        236743,
+        236800,
+        236761,
+        236770,
+        236812,
+        236770,
+        236810,
+        236819
+      ]
+    },
+    {
+      "text": "naïve café é",
+      "add_special": false,
+      "tokens": [
+        1789,
+        238527,
+        560,
+        33443,
+        545,
+        238288
+      ]
+    },
+    {
+      "text": "naïve café é",
+      "add_special": true,
+      "tokens": [
+        2,
+        1789,
+        238527,
+        560,
+        33443,
+        545,
+        238288
+      ]
+    },
+    {
+      "text": "中文 日本語 한국어",
+      "add_special": false,
+      "tokens": [
+        55041,
+        33375,
+        238582,
+        50413,
+        237430
+      ]
+    },
+    {
+      "text": "中文 日本語 한국어",
+      "add_special": true,
+      "tokens": [
+        2,
+        55041,
+        33375,
+        238582,
+        50413,
+        237430
+      ]
+    },
+    {
+      "text": "🐈 🦉 🚀",
+      "add_special": false,
+      "tokens": [
+        249160,
+        236743,
+        251253,
+        236743,
+        242015
+      ]
+    },
+    {
+      "text": "🐈 🦉 🚀",
+      "add_special": true,
+      "tokens": [
+        2,
+        249160,
+        236743,
+        251253,
+        236743,
+        242015
+      ]
+    },
+    {
+      "text": "\t x\r\n y z",
+      "add_special": false,
+      "tokens": [
+        255968,
+        1123,
+        251,
+        107,
+        570,
+        432,
+        398,
+        236802
+      ]
+    },
+    {
+      "text": "\t x\r\n y z",
+      "add_special": true,
+      "tokens": [
+        2,
+        255968,
+        1123,
+        251,
+        107,
+        570,
+        432,
+        398,
+        236802
+      ]
+    },
+    {
+      "text": "<bos><|turn>user\nHi<turn|>",
+      "add_special": false,
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        10979,
+        106
+      ]
+    },
+    {
+      "text": "<bos><|turn>user\nHi<turn|>",
+      "add_special": true,
+      "tokens": [
+        2,
+        2,
+        105,
+        2364,
+        107,
+        10979,
+        106
+      ]
+    },
+    {
+      "text": "<|channel>thought\nreason<channel|>answer",
+      "add_special": false,
+      "tokens": [
+        100,
+        45518,
+        107,
+        27388,
+        101,
+        14433
+      ]
+    },
+    {
+      "text": "<|channel>thought\nreason<channel|>answer",
+      "add_special": true,
+      "tokens": [
+        2,
+        100,
+        45518,
+        107,
+        27388,
+        101,
+        14433
+      ]
+    },
+    {
+      "text": "def f(x):\n    return x ** 2\n",
+      "add_special": false,
+      "tokens": [
+        2063,
+        517,
+        236769,
+        236781,
+        1473,
+        107,
+        140,
+        2060,
+        1123,
+        5213,
+        236743,
+        236778,
+        107
+      ]
+    },
+    {
+      "text": "def f(x):\n    return x ** 2\n",
+      "add_special": true,
+      "tokens": [
+        2,
+        2063,
+        517,
+        236769,
+        236781,
+        1473,
+        107,
+        140,
+        2060,
+        1123,
+        5213,
+        236743,
+        236778,
+        107
+      ]
+    },
+    {
+      "text": "foo\u0000bar",
+      "add_special": false,
+      "tokens": [
+        26537,
+        238,
+        2230
+      ]
+    },
+    {
+      "text": "foo\u0000bar",
+      "add_special": true,
+      "tokens": [
+        2,
+        26537,
+        238,
+        2230
+      ]
+    },
+    {
+      "text": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "add_special": false,
+      "tokens": [
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        77836
+      ]
+    },
+    {
+      "text": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "add_special": true,
+      "tokens": [
+        2,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        169620,
+        77836
+      ]
+    },
+    {
+      "text": " spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces ",
+      "add_special": false,
+      "tokens": [
+        9952,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        236743
+      ]
+    },
+    {
+      "text": " spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces  spaces ",
+      "add_special": true,
+      "tokens": [
+        2,
+        9952,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        138,
+        35220,
+        236743
+      ]
+    }
+  ],
+  "chat": [
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": " Say hello. "
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nSay hello.<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        37889,
+        29104,
+        236761,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": " Say hello. "
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nSay hello.<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        37889,
+        29104,
+        236761,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "system",
+          "content": " Be concise. "
+        },
+        {
+          "role": "user",
+          "content": "2 + 2?"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>system\nBe concise.<turn|>\n<|turn>user\n2 + 2?<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        3912,
+        63510,
+        236761,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        236778,
+        900,
+        236743,
+        236778,
+        236881,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "system",
+          "content": " Be concise. "
+        },
+        {
+          "role": "user",
+          "content": "2 + 2?"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\nBe concise.<turn|>\n<|turn>user\n2 + 2?<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        3912,
+        63510,
+        236761,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        236778,
+        900,
+        236743,
+        236778,
+        236881,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "developer",
+          "content": "Answer in French."
+        },
+        {
+          "role": "user",
+          "content": "Hello"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>system\nAnswer in French.<turn|>\n<|turn>user\nHello<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        7925,
+        528,
+        7830,
+        236761,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9259,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "developer",
+          "content": "Answer in French."
+        },
+        {
+          "role": "user",
+          "content": "Hello"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\nAnswer in French.<turn|>\n<|turn>user\nHello<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        7925,
+        528,
+        7830,
+        236761,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9259,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": "One"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nFirst<turn|>\n<|turn>model\nOne<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        4906,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": "One"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nFirst<turn|>\n<|turn>model\nOne<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        4906,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": " One "
+        },
+        {
+          "role": "assistant",
+          "content": "Two"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nFirst<turn|>\n<|turn>model\nOneTwo<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        4906,
+        11634,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": " One "
+        },
+        {
+          "role": "assistant",
+          "content": "Two"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nFirst<turn|>\n<|turn>model\nOneTwo<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        4906,
+        11634,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": "<|channel>thought\nsecret<channel|>visible"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nFirst<turn|>\n<|turn>model\nvisible<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        21259,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": "<|channel>thought\nsecret<channel|>visible"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nFirst<turn|>\n<|turn>model\nvisible<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        21259,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "  Hello "
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nHello<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        9259,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "  Hello "
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nHello<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9259,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        },
+        {
+          "role": "developer",
+          "content": "A later instruction"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nHi<turn|>\n<|turn>developer\nA later instruction<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        10979,
+        106,
+        107,
+        105,
+        55060,
+        107,
+        236776,
+        3209,
+        14787,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        },
+        {
+          "role": "developer",
+          "content": "A later instruction"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nHi<turn|>\n<|turn>developer\nA later instruction<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        10979,
+        106,
+        107,
+        105,
+        55060,
+        107,
+        236776,
+        3209,
+        14787,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "assistant",
+          "content": "Answer",
+          "reasoning": "Visible thought"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>model\n<|channel>thought\nVisible thought\n<channel|>Answer<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        21626,
+        3305,
+        107,
+        101,
+        7925,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "assistant",
+          "content": "Answer",
+          "reasoning": "Visible thought"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>model\n<|channel>thought\nVisible thought\n<channel|>Answer<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        21626,
+        3305,
+        107,
+        101,
+        7925,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": "Answer",
+          "reasoning_content": "Prior hidden thought"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nFirst<turn|>\n<|turn>model\nAnswer<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        7925,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": "Answer",
+          "reasoning_content": "Prior hidden thought"
+        },
+        {
+          "role": "user",
+          "content": "Next"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nFirst<turn|>\n<|turn>model\nAnswer<turn|>\n<|turn>user\nNext<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        7925,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        9272,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": " Answer ",
+          "reasoning_content": "Current thought"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nFirst<turn|>\n<|turn>model\n<|channel>thought\nCurrent thought\n<channel|>Answer<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        8782,
+        3305,
+        107,
+        101,
+        7925,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "First"
+        },
+        {
+          "role": "assistant",
+          "content": " Answer ",
+          "reasoning_content": "Current thought"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nFirst<turn|>\n<|turn>model\n<|channel>thought\nCurrent thought\n<channel|>Answer<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        8782,
+        3305,
+        107,
+        101,
+        7925,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": " Before "
+            },
+            {
+              "type": "image"
+            },
+            {
+              "type": "text",
+              "text": " After "
+            }
+          ]
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nBefore<|image|>After<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        13286,
+        258880,
+        6259,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": " Before "
+            },
+            {
+              "type": "image"
+            },
+            {
+              "type": "text",
+              "text": " After "
+            }
+          ]
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nBefore<|image|>After<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        13286,
+        258880,
+        6259,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "image"
+            },
+            {
+              "type": "image_url"
+            },
+            {
+              "type": "text",
+              "text": " Compare "
+            }
+          ]
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\n<|image|><|image|>Compare<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        258880,
+        258880,
+        44438,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "image"
+            },
+            {
+              "type": "image_url"
+            },
+            {
+              "type": "text",
+              "text": " Compare "
+            }
+          ]
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\n<|image|><|image|>Compare<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        258880,
+        258880,
+        44438,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "image"
+            },
+            {
+              "type": "text",
+              "text": " First "
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "A shape"
+        },
+        {
+          "role": "user",
+          "content": "Remember the shape"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\n<|image|>First<turn|>\n<|turn>model\nA shape<turn|>\n<|turn>user\nRemember the shape<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        258880,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        236776,
+        6230,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        36370,
+        506,
+        6230,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "image"
+            },
+            {
+              "type": "text",
+              "text": " First "
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "A shape"
+        },
+        {
+          "role": "user",
+          "content": "Remember the shape"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\n<|image|>First<turn|>\n<|turn>model\nA shape<turn|>\n<|turn>user\nRemember the shape<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        258880,
+        7280,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        236776,
+        6230,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        36370,
+        506,
+        6230,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "function": {
+                "name": "inspect",
+                "arguments": {
+                  "z": {
+                    "nested": true
+                  },
+                  "a": "shape"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "Done"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nInspect<turn|>\n<|turn>model\n<|tool_call>call:inspect{a:<|\"|>shape<|\"|>,z:{nested:true}}<tool_call|><|tool_response>response:inspect{value:<|\"|>Done<|\"|>}<tool_response|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        162367,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        48,
+        6639,
+        236787,
+        118821,
+        236782,
+        236746,
+        236787,
+        52,
+        9896,
+        52,
+        236764,
+        236802,
+        29616,
+        103895,
+        236787,
+        3397,
+        1807,
+        49,
+        50,
+        6275,
+        236787,
+        118821,
+        236782,
+        2394,
+        236787,
+        52,
+        34496,
+        52,
+        236783,
+        51
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "function": {
+                "name": "inspect",
+                "arguments": {
+                  "z": {
+                    "nested": true
+                  },
+                  "a": "shape"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "Done"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nInspect<turn|>\n<|turn>model\n<|tool_call>call:inspect{a:<|\"|>shape<|\"|>,z:{nested:true}}<tool_call|><|tool_response>response:inspect{value:<|\"|>Done<|\"|>}<tool_response|><|channel>thought\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        162367,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        48,
+        6639,
+        236787,
+        118821,
+        236782,
+        236746,
+        236787,
+        52,
+        9896,
+        52,
+        236764,
+        236802,
+        29616,
+        103895,
+        236787,
+        3397,
+        1807,
+        49,
+        50,
+        6275,
+        236787,
+        118821,
+        236782,
+        2394,
+        236787,
+        52,
+        34496,
+        52,
+        236783,
+        51,
+        100,
+        45518,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "function": {
+                "name": "inspect",
+                "arguments": {
+                  "path": "image.png"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Pixels"
+            },
+            {
+              "type": "image"
+            },
+            {
+              "type": "text",
+              "text": "loaded"
+            },
+            {
+              "type": "image_url"
+            }
+          ]
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nInspect<turn|>\n<|turn>model\n<|tool_call>call:inspect{path:<|\"|>image.png<|\"|>}<tool_call|><|tool_response>response:inspect{value:<|\"|>Pixelsloaded<|\"|>}<tool_response|><|image|><|image|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        162367,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        48,
+        6639,
+        236787,
+        118821,
+        236782,
+        2337,
+        236787,
+        52,
+        3304,
+        236761,
+        5067,
+        52,
+        236783,
+        49,
+        50,
+        6275,
+        236787,
+        118821,
+        236782,
+        2394,
+        236787,
+        52,
+        105718,
+        29437,
+        52,
+        236783,
+        51,
+        258880,
+        258880
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "function": {
+                "name": "inspect",
+                "arguments": {
+                  "path": "image.png"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Pixels"
+            },
+            {
+              "type": "image"
+            },
+            {
+              "type": "text",
+              "text": "loaded"
+            },
+            {
+              "type": "image_url"
+            }
+          ]
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nInspect<turn|>\n<|turn>model\n<|tool_call>call:inspect{path:<|\"|>image.png<|\"|>}<tool_call|><|tool_response>response:inspect{value:<|\"|>Pixelsloaded<|\"|>}<tool_response|><|image|><|image|><|channel>thought\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        162367,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        48,
+        6639,
+        236787,
+        118821,
+        236782,
+        2337,
+        236787,
+        52,
+        3304,
+        236761,
+        5067,
+        52,
+        236783,
+        49,
+        50,
+        6275,
+        236787,
+        118821,
+        236782,
+        2394,
+        236787,
+        52,
+        105718,
+        29437,
+        52,
+        236783,
+        51,
+        258880,
+        258880,
+        100,
+        45518,
+        107
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "function": {
+                "name": "inspect",
+                "arguments": {}
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "Done"
+        },
+        {
+          "role": "assistant",
+          "content": " I see it "
+        },
+        {
+          "role": "user",
+          "content": "Continue"
+        }
+      ],
+      "enabled": false,
+      "rendered": "<bos><|turn>user\nInspect<turn|>\n<|turn>model\n<|tool_call>call:inspect{}<tool_call|><|tool_response>response:inspect{value:<|\"|>Done<|\"|>}<tool_response|>I see it<turn|>\n<|turn>user\nContinue<turn|>\n<|turn>model\n<|channel>thought\n<channel|>",
+      "tokens": [
+        2,
+        105,
+        2364,
+        107,
+        162367,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        48,
+        6639,
+        236787,
+        118821,
+        16454,
+        49,
+        50,
+        6275,
+        236787,
+        118821,
+        236782,
+        2394,
+        236787,
+        52,
+        34496,
+        52,
+        236783,
+        51,
+        236777,
+        1460,
+        625,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        34230,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        100,
+        45518,
+        107,
+        101
+      ]
+    },
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "function": {
+                "name": "inspect",
+                "arguments": {}
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "Done"
+        },
+        {
+          "role": "assistant",
+          "content": " I see it "
+        },
+        {
+          "role": "user",
+          "content": "Continue"
+        }
+      ],
+      "enabled": true,
+      "rendered": "<bos><|turn>system\n<|think|>\n<turn|>\n<|turn>user\nInspect<turn|>\n<|turn>model\n<|tool_call>call:inspect{}<tool_call|><|tool_response>response:inspect{value:<|\"|>Done<|\"|>}<tool_response|>I see it<turn|>\n<|turn>user\nContinue<turn|>\n<|turn>model\n",
+      "tokens": [
+        2,
+        105,
+        9731,
+        107,
+        98,
+        107,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        162367,
+        106,
+        107,
+        105,
+        4368,
+        107,
+        48,
+        6639,
+        236787,
+        118821,
+        16454,
+        49,
+        50,
+        6275,
+        236787,
+        118821,
+        236782,
+        2394,
+        236787,
+        52,
+        34496,
+        52,
+        236783,
+        51,
+        236777,
+        1460,
+        625,
+        106,
+        107,
+        105,
+        2364,
+        107,
+        34230,
+        106,
+        107,
+        105,
+        4368,
+        107
+      ]
+    }
+  ]
+}

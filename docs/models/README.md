@@ -7,6 +7,7 @@ support for a new model, follow [Adding a Model to Gufo](../ADDING_MODELS.md).
 
 | Model | Weights / supported inputs | Guide |
 | --- | --- | --- |
+| Gemma 4 31B | Qualified conventional/QAT GGUF; text/images, 4K, one session | [Usage and limits](gemma4/README.md) |
 | DeepSeek V4 Flash | Flash 0731 mixed IQ2/Q2/Q8 GGUF; text | [Usage and modes](deepseek-v4-flash/README.md) |
 | Qwen3.8 27B | Q4/Q8 GGUF; text/images | [Usage and modes](qwen3.8-27b/README.md) |
 | Qwen3.8 Flash-Next | Sharded Q4 GGUF; text/images | [Usage and modes](qwen3.8-flash-next/README.md) |

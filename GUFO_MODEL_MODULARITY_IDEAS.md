@@ -6,11 +6,12 @@ level, with the GPU execution planner still future work. See
 [docs/plans/model-modularity.md](docs/plans/model-modularity.md) for the
 implementation log and measured validation results.
 
-Next proposed adopter: Gemma 4 31B using the local Unsloth QAT GGUF artifacts
-and an additional conventional quantization the user plans to supply.
-The sequence below starts with independently validated text inference, then adds
-state capabilities, MTP, and vision. Artifact metadata has been inspected; Gemma
-execution in Gufo has not been implemented or validated.
+Gemma 4 31B is now an implemented package using both supplied Unsloth QAT and
+conventional artifact sets. Text, window state, assistant/MTP and vision pass
+independent numerical and native state checks for both. API coverage and retained
+measurements are recorded in [the Gemma implementation log](docs/plans/gemma4.md).
+The initial contract is one session and a 4K context; broader variants and the
+cross-model GPU planner remain separately validated work.
 
 Legend used below: ✅ done · 🟡 partially done · ⬜ not started.
 
@@ -158,8 +159,10 @@ output parser. Gemma's different tool syntax will require an extension, with
 streaming tests, before tool support can be advertised. Prefer a package-owned
 parser producing common events over accumulating model branches in HTTP code.
 
-Generic prompting currently rejects image inputs. Gemma vision support will
-therefore also test the shared prompt/preparation boundary. Keep ordinary text
+Generic prompting now forwards image attachments through package-owned
+`PreparePrompt`. Gemma demonstrated one additional shared boundary:
+`TextPromptContext::PrefillBoundary` keeps bidirectional image blocks atomic
+when scheduling prefill or capturing cache checkpoints. Keep ordinary text
 dispatch registration-driven, but allow small shared-interface changes when a
 new capability demonstrates the need.
 
@@ -216,24 +219,30 @@ beyond what such a redesign can promise.
 
 ## Remaining work (in suggested order)
 
-1. ⬜ Prove the package with a genuinely new architecture: implement Gemma 4
-   31B through the sequence below. Qwen, DeepSeek, and Flash-Next already have
-   package adapters; the next test is an independent addition, not another
-   move of existing runner code. Record how much code lives in the package and
-   which shared interfaces actually need extension.
-2. ⬜ Separate architecture from supported weight storage during that port.
-   Validate tensor names, shapes, storage types, and conversion assumptions
-   explicitly. Start with the supplied Unsloth QAT artifacts; do not require a
-   universal weight abstraction before the first model works.
-3. ⬜ Develop reusable GPU operations and architecture composition together,
+1. ✅ Prove the package with a new architecture: Gemma 4 31B is implemented
+   through registration at one session/4K context for both supplied sets.
+   Target, assistant and vision math remain in 3082 model-private source lines.
+   Shared changes are image forwarding/atomic cache boundaries, registration,
+   and a coalesced reasoning-delimiter fix. See the implementation log.
+2. ✅ Separate architecture from supported weight storage during the port.
+   Tensor names, shapes, storage types, conversion assumptions, tokenizer and
+   sidecar identities are validated explicitly. Both supplied sets have
+   independent numerical baselines; no universal weight abstraction is added.
+3. 🟡 Develop reusable GPU operations and architecture composition together,
    driven by the working Gemma implementation. Extract an operation only when
    two models need matching semantics and parity/performance proofs exist.
    Keep model-private kernels until then. Build shape/dtype selection and
    execution-graph planning incrementally rather than designing a complete
    planner before the second implementation provides evidence.
-4. ⬜ Extend package boundaries where Gemma demonstrates a gap: output/tool
-   parsing, multimodal prompt preparation, and any missing state operations.
-   Keep model-specific behavior in the package and HTTP serialization shared.
+   Gemma target/vision share qualified private FP32 norm/GELU/BLAS helpers.
+   Bounded shape/mask rules and the first cross-model FP32 GEMM candidate are
+   recorded in [EXPERIMENTS.md](docs/models/gemma4/EXPERIMENTS.md); extraction,
+   GPU timeline profiling and a universal planner remain future work.
+4. 🟡 Extend package boundaries where Gemma demonstrates a gap: multimodal
+   preparation, atomic prefill/cache endpoints and reasoning filtering are
+   implemented. Incoming tool history/image replay is tested; tool definitions
+   and generated tool parsing remain disabled. Keep model behavior in its
+   package and HTTP serialization shared.
 5. Ongoing: preserve shared-op parity checksums and existing-model baselines.
    Run matched-token full-logit and perplexity checks at relevant milestones;
    require exact equality for behavior-preserving refactors of the same
@@ -246,13 +255,13 @@ The user supplied the Unsloth QAT versions of Gemma 4 31B under
 `experimental/unsloth-gemma4-31b-qat/`. This is the inspected candidate artifact
 set, not a promise of support for every Gemma size or quantization.
 
-The user also plans to add a more conventional quantized Gemma 4 31B artifact.
-Its filename, source checkpoint, storage types, and sidecar compatibility have
-not yet been inspected. Once available, inventory both variants and choose the
-one with the simplest verified reference and kernel support for initial bring-up.
-A conventional quant is a useful first target if it reduces conversion-specific
-uncertainty; keep the Unsloth QAT set as a separate compatibility milestone.
-Do not assume the existing QAT assistant is suitable for a non-QAT target.
+The conventional artifact set is present under
+`experimental/alternate-gemma4-31b/`. Both sets now have hash-matched publisher
+revisions, complete inventories and separate numerical baselines in
+`src/models/gemma4/fixtures/artifacts.json`. Conventional target storage is
+Q4_K/Q5_K/Q6_K/FP32, with a Q8_0 assistant. The QAT target and assistant use
+Q4_0/FP32. Their BF16 projectors have different hashes and weights; supplied
+sidecars are accepted only with their matching target set.
 
 Maintain a separate numerical baseline for each artifact. Different weights or
 quantization recipes can legitimately produce different logits; cross-quant

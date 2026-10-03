@@ -230,7 +230,7 @@ void RegisterBenchOptions(ArgParser& parser, BenchOptions& opt,
                    "DeepSeek V4 Flash DSpark support GGUF", "Speculative",
                    &opt.dspark_model_path);
   parser.AddOption("", "--mtp-model", "PATH",
-                   "Path to quantized Qwen MTP draft head GGUF file",
+                   "Path to compatible MTP assistant/head GGUF file",
                    "Speculative", &opt.mtp_model_path);
   parser.AddCustomOption(
       "", "--draft-tokens", "N",

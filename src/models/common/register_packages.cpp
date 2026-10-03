@@ -4,6 +4,7 @@
 
 #if defined(ENGINE_ENABLE_HIP)
 #include "src/models/deepseek_v4_flash/serve_runner.hpp"
+#include "src/models/gemma4/serve_runner.hpp"
 #include "src/models/qwen/serve_runner.hpp"
 #include "src/models/qwen38_flash_next/serve_runner.hpp"
 #endif
@@ -17,6 +18,7 @@ void RegisterAllModelPackages() {
     qwen::serve::RegisterQwenPackage();
     deepseek_v4_flash::serve::RegisterDeepSeekPackage();
     qwen38_flash_next::serve::RegisterFlashNextPackage();
+    gemma4::RegisterGemma4Package();
   });
 #else
   // No serving-capable package without the HIP backend; file loads fail with

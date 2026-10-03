@@ -64,7 +64,7 @@ static void RegisterImageOptions(ArgParser& parser, PromptOptions& opt) {
                  "Prefix image inputs with Picture N: in the chat template",
                  "Prompt", &opt.add_vision_id);
   parser.AddOption("", "--mmproj", "PATH",
-                   "Qwen BF16 vision sidecar (auto-discovered beside model)",
+                   "Compatible BF16 vision sidecar (see model package docs)",
                    "Model", &opt.vision_model_path);
   parser.AddCustomOption(
       "", "--image", "PATH",
@@ -168,7 +168,7 @@ static void RegisterTextOptions(ArgParser& parser, PromptOptions& opt,
                    "Path to the DeepSeek V4 Flash DSpark support GGUF file",
                    "Speculative", &opt.dspark_model_path);
   parser.AddOption("", "--mtp-model", "PATH",
-                   "Path to quantized Qwen MTP draft head GGUF file",
+                   "Path to compatible MTP assistant/head GGUF file",
                    "Speculative", &opt.mtp_model_path);
   parser.AddCustomOption(
       "-d", "--draft-tokens", "N",
@@ -357,9 +357,8 @@ int RunGenericPrompt(const PromptOptions& opt,
       return 1;
     }
   }
-  if (!opt.image_paths.empty()) {
-    std::cerr << "Error: generic prompt does not support images; use the "
-                 "model's own prompt path\n";
+  if (!opt.image_paths.empty() && !opt.use_chat_template) {
+    std::cerr << "Error: image input requires a chat prompt\n";
     return 1;
   }
   models::common::SpeculativeRequest speculative;
@@ -406,6 +405,24 @@ int RunGenericPrompt(const PromptOptions& opt,
     request_messages.reserve(messages.size());
     for (const auto& message : messages) {
       request_messages.push_back(message);
+    }
+    if (!opt.image_paths.empty()) {
+      auto user =
+          std::find_if(request_messages.rbegin(), request_messages.rend(),
+                       [](const auto& message) {
+                         return message.role == models::common::ChatRole::kUser;
+                       });
+      if (user == request_messages.rend())
+        throw std::invalid_argument("image prompt requires a user message");
+      try {
+        for (const auto& path : opt.image_paths)
+          user->images.push_back(
+              {0, std::make_shared<const std::vector<std::uint8_t>>(
+                      core::ReadImageFile(path))});
+      } catch (const std::exception& failure) {
+        std::cerr << "Error reading prompt image: " << failure.what() << '\n';
+        return 1;
+      }
     }
     server::ChatRequest chat_request(std::move(request_messages));
     chat_request.reasoning = PromptReasoningOptions(opt);

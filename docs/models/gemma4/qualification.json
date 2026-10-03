@@ -1,0 +1,592 @@
+{
+  "date": "2026-10-02",
+  "platform": "Windows 11 x64, AMD Strix Halo gfx1151",
+  "context_limit": 4096,
+  "sessions": 1,
+  "precision": "FP32 activations/KV; original GGUF weight storage",
+  "artifact_manifest": "src/models/gemma4/fixtures/artifacts.json",
+  "artifacts": [
+    {
+      "file": "experimental/alternate-gemma4-31b/gemma-4-31B-it-UD-Q4_K_XL.gguf",
+      "bytes": 18822970304,
+      "sha256": "9e92cb6236044c6a9870af406029c74a76e0571c157a6f95df724dcc8c7a1575"
+    },
+    {
+      "file": "experimental/alternate-gemma4-31b/mmproj-BF16.gguf",
+      "bytes": 1200726496,
+      "sha256": "7a4601b12ec680f706a7e0c7e1f78f579b1db64d485a9e352ee87d4b9daa45e4"
+    },
+    {
+      "file": "experimental/alternate-gemma4-31b/mtp-gemma-4-31B-it.gguf",
+      "bytes": 514687104,
+      "sha256": "5ae8b0117bed601e8924c6305bd5b0585de361d51f0e77091bcb4252cf1f27de"
+    },
+    {
+      "file": "experimental/unsloth-gemma4-31b-qat/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf",
+      "bytes": 17287670048,
+      "sha256": "00b5a7c497f0c8934033088c10a7fa9a4c015e46ee6d89e9c6890650ba5d0e71"
+    },
+    {
+      "file": "experimental/unsloth-gemma4-31b-qat/mmproj-BF16.gguf",
+      "bytes": 1200726496,
+      "sha256": "d904b3579a9fbfbd50bc9bf40cb7384909edbd69fa9276db5ddc853e80f0edca"
+    },
+    {
+      "file": "experimental/unsloth-gemma4-31b-qat/mtp-gemma-4-31B-it.gguf",
+      "bytes": 279955968,
+      "sha256": "3a5e99fd8d0b23afb1fccd1ee0c9ebd1f571d00399c2dae2292d217feeec0f6b"
+    }
+  ],
+  "build_identities": {
+    "baseline_executable_sha256": "2b663afd908a0b618b03a4e969a7fa2b533443bfe6dbbfdd1188c6bbc6a341a9",
+    "candidate_executable_sha256": "493e8565fe80beb5b0e80a4a108220328bc25f97899dcbdc5c3098b6eb8b2521",
+    "numerical_oracle_hip_dll_sha256": "d00db3abf035d6b7450f817fbecac944e85e417ac7a4e26a3d1fc655879a8ec9",
+    "reference_revision": "1d13fa1c5d6ed9f8cfdc924744b204070c32466d",
+    "gufo_base_revision": "600460118c23",
+    "compiler": "TheRock 10.0.0, clang 23",
+    "build_preset": "release: RelWithDebInfo, -O2, NDEBUG",
+    "gpu_architecture": "gfx1151",
+    "standard_reference_hip_dll_sha256": "2bfcc8dd497f67f5b61bdcb58271cd2c781ba1b0dbdeb47151a088de347feae9"
+  },
+  "numerical": {
+    "conventional": {
+      "scalar": {
+        "passed": true,
+        "rows": 277,
+        "max_rmse": 0.005926379540286571,
+        "max_error": 0.04735207557678223,
+        "top1_agreement": 1.0,
+        "reference_ppl": 186.52196205163878,
+        "candidate_ppl": 186.52225205036663,
+        "ppl_relative": 1.5547698761775308e-06,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/comparison-conventional-corpus.json",
+        "report_sha256": "3f03a155a7ae5d4d2dcc5791638c06131c38e256e0e5ba98db2243970e7611aa"
+      },
+      "batch": {
+        "passed": true,
+        "rows": 277,
+        "max_rmse": 0.005633351562511395,
+        "max_error": 0.045120954513549805,
+        "top1_agreement": 1.0,
+        "reference_ppl": 186.52196205163878,
+        "candidate_ppl": 186.52233392709024,
+        "ppl_relative": 1.9937354689414377e-06,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/batch-comparison-conventional.json",
+        "report_sha256": "b91ca7e5f8cd91a851dee9e94fd04b75b595ce83059ec9abae525b0d345d6f82"
+      },
+      "window": {
+        "passed": true,
+        "rows": 11,
+        "max_rmse": 0.013357419085465222,
+        "max_error": 0.05312156677246094,
+        "top1_agreement": 1.0,
+        "reference_ppl": 1.4595077938424719,
+        "candidate_ppl": 1.4595119204926397,
+        "ppl_relative": 2.8274259207261565e-06,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/window-comparison-conventional.json",
+        "report_sha256": "3954fcca00a77535e5cd934c4beb9744d5af7ea168b536f2b8c53992cb4d4ed9"
+      },
+      "image_window": {
+        "passed": true,
+        "rows": 17,
+        "max_rmse": 0.001140661605799786,
+        "max_error": 0.010599255561828613,
+        "top1_agreement": 1.0,
+        "reference_ppl": 4769.072292676513,
+        "candidate_ppl": 4767.393918158968,
+        "ppl_relative": 0.00035192893178048745,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/image-window-comparison-conventional.json",
+        "report_sha256": "e6e024f5aa2310fd2331b9ea628cb1ca8db40476cfdb5c50e343fe3ed108deab"
+      },
+      "assistant": {
+        "passed": true,
+        "tensors": 49,
+        "max_rmse": 8.523037674038636e-05,
+        "max_error": 0.0004119873046875,
+        "limits": {
+          "rmse": 0.05,
+          "max_error": 0.5
+        },
+        "report": "build/gemma4/assistant-comparison-conventional-final.json",
+        "report_sha256": "ebc42c8d0cb30c576c863a8a9e993024d7978d7ff288e248f1df1b778719eb21"
+      },
+      "vision": {
+        "passed": true,
+        "tensors": 41,
+        "max_rmse": 0.0006798610614428305,
+        "max_error": 0.0458984375,
+        "limits": {
+          "rmse": 0.01,
+          "max_error": 0.1
+        },
+        "report": "build/gemma4/vision-comparison-conventional.json",
+        "report_sha256": "2c17179cb073bbb48ca65921028677ffa41691e6fe0be0c1952b058238c10d78"
+      }
+    },
+    "qat": {
+      "scalar": {
+        "passed": true,
+        "rows": 277,
+        "max_rmse": 0.0005687220251604865,
+        "max_error": 0.0026531219482421875,
+        "top1_agreement": 1.0,
+        "reference_ppl": 334.35483607929734,
+        "candidate_ppl": 334.3555269423748,
+        "ppl_relative": 2.066257170252328e-06,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/comparison-qat-corpus.json",
+        "report_sha256": "f006e2cf7553b1611852c21c26db7d73c91dd8fdc20bf54b83ed06ad3a5c850d"
+      },
+      "batch": {
+        "passed": true,
+        "rows": 277,
+        "max_rmse": 0.0003213449354881189,
+        "max_error": 0.0017409324645996094,
+        "top1_agreement": 1.0,
+        "reference_ppl": 334.35483607929734,
+        "candidate_ppl": 334.3553981142574,
+        "ppl_relative": 1.680953584104472e-06,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/batch-comparison-qat.json",
+        "report_sha256": "62af6029b470def8687e7b02969bd5c3618eec9455f3c254fbf938047630eb86"
+      },
+      "window": {
+        "passed": true,
+        "rows": 11,
+        "max_rmse": 0.002446383702470153,
+        "max_error": 0.009368896484375,
+        "top1_agreement": 1.0,
+        "reference_ppl": 1.375540537253942,
+        "candidate_ppl": 1.3755419855360709,
+        "ppl_relative": 1.052882186769466e-06,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/window-comparison-qat.json",
+        "report_sha256": "6004bf8ec7098b3b73f73bce3878086a0ce2626306bc8b7d63ea1ff6ec3e2c1b"
+      },
+      "image_window": {
+        "passed": true,
+        "rows": 17,
+        "max_rmse": 0.0003953388213895788,
+        "max_error": 0.002258777618408203,
+        "top1_agreement": 1.0,
+        "reference_ppl": 511.5251470038938,
+        "candidate_ppl": 511.55414749529376,
+        "ppl_relative": 5.6694165613935255e-05,
+        "limits": {
+          "rmse": 0.1,
+          "max_error": 1.0,
+          "ppl_relative": 0.01
+        },
+        "report": "build/gemma4/image-window-comparison-qat.json",
+        "report_sha256": "42e53e772ab13bdb78a78bf92e9a0caaa0225a9e48644cff3d3a08a4f72648ca"
+      },
+      "assistant": {
+        "passed": true,
+        "tensors": 49,
+        "max_rmse": 3.3323923126217603e-05,
+        "max_error": 0.0001678466796875,
+        "limits": {
+          "rmse": 0.05,
+          "max_error": 0.5
+        },
+        "report": "build/gemma4/assistant-comparison-qat-final.json",
+        "report_sha256": "466a500ee65c53c4eeb65bce371c7e5143437e53ea789e140bfe05a47569363a"
+      },
+      "vision": {
+        "passed": true,
+        "tensors": 41,
+        "max_rmse": 0.0006798610614428305,
+        "max_error": 0.0458984375,
+        "limits": {
+          "rmse": 0.01,
+          "max_error": 0.1
+        },
+        "report": "build/gemma4/vision-comparison-qat.json",
+        "report_sha256": "ddf5705c05389c8ca194c17ea6b2bd17c0849afc63a8794cb53dc8d5b011205b"
+      }
+    }
+  },
+  "native_state": {
+    "conventional": {
+      "window_restore_fork_cancellation": true,
+      "window_snapshot_positions": [
+        1023,
+        1024,
+        1025,
+        2049
+      ],
+      "window_comparison_frontiers": [
+        20,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        2049,
+        2050,
+        2051,
+        2052
+      ],
+      "common_harness": {
+        "passed": 4,
+        "skipped": 0
+      },
+      "text_mtp": {
+        "passed": true,
+        "greedy_tokens": 24,
+        "sampled_tokens": 24,
+        "full_state_rng_position_exact": true,
+        "forced_stop_ids": [
+          1,
+          106,
+          50
+        ],
+        "cancellation_restore": true,
+        "natural_partial_stop": true,
+        "drafts": 46,
+        "accepted": 38,
+        "report": "build/gemma4/speculative-window-conventional.log",
+        "report_sha256": "751049b1dc3efee42d9c5a225f0a69679c1a2ce203b651eb93aaa8234fe3794c"
+      },
+      "image_mtp": {
+        "passed": true,
+        "greedy_tokens": 24,
+        "sampled_tokens": 24,
+        "full_state_rng_position_exact": true,
+        "forced_stop_ids": [
+          1,
+          106,
+          50
+        ],
+        "cancellation_restore": true,
+        "natural_partial_stop": true,
+        "drafts": 74,
+        "accepted": 28,
+        "report": "build/gemma4/multimodal-speculative-conventional.log",
+        "report_sha256": "32da0f65c61b6507ad6c6bf2bbd7ae9ea42476f04596f45827b92fb1517f2b2f"
+      }
+    },
+    "qat": {
+      "window_restore_fork_cancellation": true,
+      "window_snapshot_positions": [
+        1023,
+        1024,
+        1025,
+        2049
+      ],
+      "window_comparison_frontiers": [
+        20,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        2049,
+        2050,
+        2051,
+        2052
+      ],
+      "common_harness": {
+        "passed": 4,
+        "skipped": 0
+      },
+      "text_mtp": {
+        "passed": true,
+        "greedy_tokens": 24,
+        "sampled_tokens": 24,
+        "full_state_rng_position_exact": true,
+        "forced_stop_ids": [
+          1,
+          106,
+          50
+        ],
+        "cancellation_restore": true,
+        "natural_partial_stop": true,
+        "drafts": 52,
+        "accepted": 38,
+        "report": "build/gemma4/speculative-window-qat.log",
+        "report_sha256": "429776c6d925a694829ee39132540f1f3f7050b616ec515787e4b269badc6244"
+      },
+      "image_mtp": {
+        "passed": true,
+        "greedy_tokens": 24,
+        "sampled_tokens": 24,
+        "full_state_rng_position_exact": true,
+        "forced_stop_ids": [
+          1,
+          106,
+          50
+        ],
+        "cancellation_restore": true,
+        "natural_partial_stop": true,
+        "drafts": 52,
+        "accepted": 33,
+        "report": "build/gemma4/multimodal-speculative-qat.log",
+        "report_sha256": "3a41ef5553f010ea0712cdfbf162cb7755f5df217914aa84facdf047939bee39"
+      }
+    }
+  },
+  "http": {
+    "http-text-qat-final.json": {
+      "passed": true,
+      "checks": [
+        "thinking_False",
+        "thinking_True",
+        "raw",
+        "unsupported_tools",
+        "unloaded_image_rejected"
+      ],
+      "input_modalities": [
+        "text"
+      ],
+      "report": "build/gemma4/http-text-qat-final.json",
+      "report_sha256": "b2b3db5f153198ef9dbd3aa129aa822a4cd01202ac36967a361c0e4f6f85c8f3"
+    },
+    "http-text-conventional-final.json": {
+      "passed": true,
+      "checks": [
+        "thinking_False",
+        "thinking_True",
+        "raw",
+        "unsupported_tools",
+        "unloaded_image_rejected"
+      ],
+      "input_modalities": [
+        "text"
+      ],
+      "report": "build/gemma4/http-text-conventional-final.json",
+      "report_sha256": "f6a603314cb0cf897529929f320328ccd10b56e4681d63a02880bd4936d609de"
+    },
+    "http-vision-qat-final.json": {
+      "passed": true,
+      "checks": [
+        "thinking_False",
+        "thinking_True",
+        "raw",
+        "unsupported_tools",
+        "direct_image",
+        "image_replacement",
+        "image_order",
+        "image_history",
+        "tool_result_image",
+        "responses_image_replay"
+      ],
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "report": "build/gemma4/http-vision-qat-final.json",
+      "report_sha256": "101deabd28f2c8d177b0ac848b311d35fe9514d385a5b1cca571468313ead9cf"
+    },
+    "http-vision-conventional-final.json": {
+      "passed": true,
+      "checks": [
+        "thinking_False",
+        "thinking_True",
+        "raw",
+        "unsupported_tools",
+        "direct_image",
+        "image_replacement",
+        "image_order",
+        "image_history",
+        "tool_result_image",
+        "tool_image_followup",
+        "responses_image_replay"
+      ],
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "report": "build/gemma4/http-vision-conventional-final.json",
+      "report_sha256": "352fa37864ad578036083d54832155481c49812d085cb0a0fb03ca7db5444446"
+    },
+    "http-mtp-vision-qat-final.json": {
+      "passed": true,
+      "checks": [
+        "thinking_False",
+        "thinking_True",
+        "raw",
+        "unsupported_tools",
+        "direct_image",
+        "image_replacement",
+        "image_order",
+        "image_history",
+        "tool_result_image",
+        "tool_image_followup",
+        "responses_image_replay"
+      ],
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "report": "build/gemma4/http-mtp-vision-qat-final.json",
+      "report_sha256": "0736f965d915fbe4598f03c99cf52c0e5b42408d9dec10ea4be1bd5bfb303c3f"
+    }
+  },
+  "limitations": [
+    "Linux execution not run: local WSL lacks compiler, CMake and Nix. CPU targets added to Linux CI.",
+    "rocprofv3 unavailable on this Windows installation; GPU timeline/busy-time/ISA profiling unmeasured.",
+    "Cross-model GPU extraction, longer contexts, concurrency and additional Gemma variants remain separate qualification work.",
+    "MTP uses sequential target verification and is slower on the retained workload.",
+    "Tool definitions/generated tool calls and disk snapshots remain disabled.",
+    "Conventional immediate tool-image continuation returns a newline on the recorded fixture; explicit follow-up correctly reads the retained image."
+  ],
+  "unchanged_scalar_byte_equality": {
+    "qat": {
+      "passed": true,
+      "rows": 277,
+      "bytes": 290455552,
+      "baseline_sha256": "f7532b662b264d9360a85302177708e928896e7a6a9cbb85895a0dd3e2a95181",
+      "final_sha256": "f7532b662b264d9360a85302177708e928896e7a6a9cbb85895a0dd3e2a95181"
+    },
+    "conventional": {
+      "passed": true,
+      "rows": 277,
+      "bytes": 290455552,
+      "baseline_sha256": "322517e30ff0aaf427888c8226286dd3b88baadeaba2401de4e28a2b2fce1b77",
+      "final_sha256": "322517e30ff0aaf427888c8226286dd3b88baadeaba2401de4e28a2b2fce1b77"
+    }
+  },
+  "cli": {
+    "passed": true,
+    "image_mtp_qat": {
+      "exit_code": 0,
+      "answer": "Red",
+      "model_context": "generic prompt-sized context",
+      "max_tokens": 8,
+      "seed": 42,
+      "thinking": false,
+      "speculative": "mtp",
+      "vision": true
+    },
+    "raw_image_rejected": {
+      "exit_code": 2,
+      "error": "image input requires ROCm and chat framing"
+    }
+  },
+  "performance_qat": {
+    "prompt_tokens": 2048,
+    "completed_tokens": 128,
+    "temperature": 0,
+    "seed": 42,
+    "warmup": "16 prompt + 8 forced continuation tokens, then reset",
+    "assistant_resident_for_ar": true,
+    "baseline_prefill_tps": 3.315767315007387,
+    "candidate_prefill_tps": 14.956229054770663,
+    "prefill_gain": 4.510638906137279,
+    "baseline_ar_tps": 3.0175893918304606,
+    "candidate_ar_tps": 3.006964790577717,
+    "candidate_mtp_tps": 2.846015938551955,
+    "drafts": 221,
+    "accepted": 65,
+    "native_build_outputs_exact": true,
+    "native_ar_mtp_rng_position_final_logits_exact": true,
+    "prompt_ids_sha256": "7b5cb8e81e502917a4a75a69d1f4dbb81ec5d7e82e58c13ad5501401d3dfc558",
+    "output_ids_sha256": "2bd19ca36fc9ce8f6c7832d748d500a869fac026474dfde2bac7f7330b086e72",
+    "baseline_memory_bytes": {
+      "weights_bytes": 17536004352,
+      "kv_bytes": 2348810240,
+      "scratch_bytes": 2770944,
+      "snapshot_bytes": 2014336008
+    },
+    "candidate_memory_bytes": {
+      "weights_bytes": 17536004352,
+      "kv_bytes": 2558525440,
+      "scratch_bytes": 577300480,
+      "snapshot_bytes": 2224051208
+    },
+    "standard_reference_different_arithmetic": {
+      "prefill_tokens": 2048,
+      "prefill_ms": 9539.86,
+      "prefill_tps": 214.678,
+      "decode_tokens": 128,
+      "decode_ms": 22064.2,
+      "decode_tps": 5.80126,
+      "greedy_agreement": 126,
+      "precision": "standard HIP, F32 KV, flash off"
+    },
+    "conventional_performance": "not measured in this A/B"
+  },
+  "test_builds": {
+    "api_version": "gufo version 600460118c23-dirty",
+    "api_executable_sha256": "765121f4e7152e49afb8e58dd3efdbe777f6e0ac7710fb8d008d741f0a893668",
+    "validation_executable_sha256": "fba76f58f1c8408d08b0f4d122b6bedcc887e2a6316b74943bcb038ebaa0f723",
+    "source_note": "Numerical/API binaries built from 600460118c23-dirty; shared fixes committed as c9044a8 and ddade81 without changing tested code. Final production aliases rebuilt after the feature commit."
+  },
+  "fixture_sha256": {
+    "src/models/gemma4/fixtures/artifacts.json": "7ce359debd006290fa9f3b8eb5c8776bba1d54ac659cd86abd301379bcb69e45",
+    "src/models/gemma4/fixtures/assistant-tokens.txt": "1fc4c8563264da9bb05acd75c0b92c3b2ef65fed253b13cc9c6af6c4917ff0de",
+    "src/models/gemma4/fixtures/corpus-tokens.txt": "3b564da3bdc2b4cb671cec4520a2b1f627e6d2332ffce76293a8a14706b1f349",
+    "src/models/gemma4/fixtures/corpus.txt": "b240105add647a81254027675bc590358f9c18b702dd65c190b1b623ac2a7dfc",
+    "src/models/gemma4/fixtures/image-comparison-tokens.txt": "72a5cd5a4407b918e5115100bf99750905cc3d107908d1180cbd4bd8f5a87bd1",
+    "src/models/gemma4/fixtures/image-suffix-tokens.txt": "3cb804e2653541ee92820bddf43bb4cf6eb584217cac757536a18c89e9aa981f",
+    "src/models/gemma4/fixtures/protocol-conventional.json": "86e07220fa4dc7a9d76b95474a0600d426f4f501bf535e097dac7d8e9752e020",
+    "src/models/gemma4/fixtures/protocol-qat.json": "86e07220fa4dc7a9d76b95474a0600d426f4f501bf535e097dac7d8e9752e020",
+    "src/models/gemma4/fixtures/shapes.png": "eedf21bd2ac063f9b8717500c58d3ddee7ed79183544a465cd9c2b006c253967",
+    "src/models/gemma4/fixtures/window-positions.txt": "75734ee69ea6bf593af6d327d393586acd1a486796ca6e1e2ff9fe69aa914711"
+  },
+  "cpu_checks": {
+    "all_passed": true,
+    "reports": [
+      "build/gemma4/ctest-final-cpu.log",
+      "build/gemma4/ctest-cli-cpu.log",
+      "build/gemma4/ctest-gemma-final.log"
+    ],
+    "description": "13 rebuilt API/cache/scheduler/Qwen/Flash CPU suites; CLI contracts; Gemma protocol and image fixtures. Overlapping suites are not counted as independent passes.",
+    "unique_suite_count": 17,
+    "suite_names": [
+      "bench_cli_test",
+      "continuation_cache_test",
+      "continuation_disk_store_test",
+      "gemma4_image_test",
+      "gemma4_protocol_test",
+      "http_server_test",
+      "openai_chat_test",
+      "prompt_cli_test",
+      "qwen38_flash_next.config",
+      "qwen38_flash_next.mtp_sampling",
+      "qwen38_flash_next.ops_parity",
+      "qwen38_flash_next.prompt_lookup",
+      "qwen_chat_template_test",
+      "qwen_tokenizer_test",
+      "serve_cli_test",
+      "text_generation_scheduler_test",
+      "text_model_runner_test"
+    ]
+  },
+  "windows_bounded_qualification_passed": true
+}

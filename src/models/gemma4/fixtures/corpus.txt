@@ -1,0 +1,22 @@
+An owl rested on a branch beside the library. Inside, a student compared two
+ways to calculate the same answer. She wrote down the inputs, checked the units,
+and repeated the experiment before drawing a conclusion. A result should be
+reproducible: another reader needs the same data and a clear description of the
+method. Small differences in floating point arithmetic can accumulate, so a
+careful comparison records both absolute and relative error.
+
+For a simple example, let a rectangular garden be twelve metres long and eight
+metres wide. Its area is ninety-six square metres, and its perimeter is forty
+metres. If three equal rows divide the longer side, each row is four metres long.
+The arithmetic does not depend on the colour of the fence or the season.
+
+A computer program should reject an input it cannot interpret. It should also
+keep independent requests separate. After an interrupted calculation, starting
+again from the original inputs should recover the original answer. These rules
+are useful for tests of memory, state restoration, and numerical correctness.
+
+In Python, a short loop can compute a sum:
+total = 0
+for value in [2, 3, 5, 7]:
+    total += value
+The final total is 17. Keeping a small example makes an error easier to locate.

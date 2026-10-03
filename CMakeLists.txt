@@ -165,6 +165,7 @@ target_link_libraries(gufo_core PUBLIC ICU::uc ICU::i18n Threads::Threads
   PNG::PNG JPEG::JPEG CURL::libcurl OpenSSL::Crypto)
 
 add_subdirectory(src/models/qwen)
+add_subdirectory(src/models/gemma4)
 add_subdirectory(src/models/qwen_image_21)
 
 target_link_libraries(gufo_qwen3_tts PUBLIC gufo_core)
@@ -248,6 +249,7 @@ if(ENGINE_ENABLE_HIP)
     src/models/qwen/serve_runner.cpp
     src/models/deepseek_v4_flash/serve_runner.cpp
     src/models/qwen38_flash_next/serve_runner.cpp
+    src/models/gemma4/serve_runner.cpp
   )
   target_link_libraries(gufo_model_packages PUBLIC gufo_deepseek_v4_flash
     gufo_qwen38_flash_next)
@@ -316,6 +318,10 @@ if (BUILD_TESTING OR GUFO_BUILD_TOOLS)
 endif()
 
 if (ENGINE_ENABLE_HIP AND GUFO_BUILD_TOOLS)
+  add_executable(gemma4_bench EXCLUDE_FROM_ALL
+    src/models/gemma4/tools/benchmark.cpp)
+  target_link_libraries(gemma4_bench PRIVATE gufo_model_packages)
+
   # TheRock's Windows distribution has no rocprofiler-sdk; the markers are
   # optional there and the benchmark runs without them.
   if (WIN32)
@@ -382,6 +388,7 @@ if (BUILD_TESTING)
   set_tests_properties(logit_eval_test PROPERTIES LABELS "cpu;quality;tools")
 
   add_subdirectory(tests/models/common)
+  add_subdirectory(tests/models/gemma4)
   add_subdirectory(tests/models/qwen)
   add_subdirectory(tests/models/qwen27b)
   gufo_qwen3_asr_register_tests()
