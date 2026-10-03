@@ -1235,6 +1235,60 @@ void TestFullChatCheckpointRestoresWithoutSuffixPrefill() {
   old.Invalidate();
 }
 
+void TestAtomicImageBoundaries() {
+  class ContextRunner final : public SnapshotRunner {
+  public:
+    using SnapshotRunner::SnapshotRunner;
+    void SetPromptContext(
+        TextRunnerState&,
+        std::shared_ptr<const gufo::server::TextPromptContext>) const override {
+    }
+  };
+  struct ImageContext final : gufo::server::TextPromptContext {
+    std::size_t begin{2}, end{5};
+    std::size_t PrefillBoundary(std::size_t requested) const override {
+      return begin < requested && requested < end ? end : requested;
+    }
+    std::span<const std::uint8_t> IdentityBefore(
+        std::size_t count) const override {
+      return count > begin ? cache_identity : std::span<const std::uint8_t>{};
+    }
+  };
+  auto stats = std::make_shared<FakeStats>();
+  auto runner = std::make_shared<ContextRunner>(stats, 64, 256, 1024);
+  TextRunnerPool pool(runner, 1);
+  auto context = std::make_shared<ImageContext>();
+  context->cache_identity = {10};
+  const std::vector<TextRunnerToken> prompt{1, 2, 60, 60, 60, 40};
+  {
+    auto request = pool.Acquire(prompt, {}, {}, context, true, 3);
+    Expect(request.Prefill(1).consumed_tokens == 1,
+           "text honors a one-token prefill budget");
+    Expect(request.Prefill(1).consumed_tokens == 1,
+           "text stops at the image's first token");
+    const auto image = request.Prefill(1);
+    Expect(image.consumed_tokens == 3 && !image.decode_ready,
+           "bidirectional image executes as a complete atomic block");
+    Expect(request.Prefill(1).decode_ready,
+           "text resumes after the image checkpoint");
+    request.Commit();
+  }
+  {
+    auto request =
+        pool.Acquire({1, 2, 60, 60, 60, 41}, {}, {}, context, true, 3);
+    Expect(request.cached_prompt_tokens() == 5,
+           "checkpoint inside an image rounds to its completed endpoint");
+    Expect(request.Prefill(1).decode_ready, "image snapshot resumes with text");
+    request.Commit();
+  }
+  auto changed = std::make_shared<ImageContext>();
+  changed->cache_identity = {11};
+  auto request = pool.Acquire(prompt, {}, {}, changed, true, 3);
+  Expect(!request.cache_hit(),
+         "identical placeholder tokens cannot reuse different image pixels");
+  request.Invalidate();
+}
+
 void TestNewImageGetsAStableCheckpoint() {
   class ContextRunner final : public SnapshotRunner {
   public:
@@ -1595,6 +1649,7 @@ int main() {
   TestBatchedAdvancePreservesIndependentRequests();
   TestResourceClaimsAreValidatedBeforeAllocation();
   TestSnapshotForkAndUnsupportedCapabilities();
+  TestAtomicImageBoundaries();
   TestSnapshotCacheBranchesOnePrefixIntoIndependentStates();
   std::ostringstream normal_log;
   auto* previous = std::clog.rdbuf(normal_log.rdbuf());

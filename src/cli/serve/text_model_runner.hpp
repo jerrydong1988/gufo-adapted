@@ -32,6 +32,14 @@ struct TextPromptContext {
       std::size_t) const {
     return cache_identity;
   }
+  /// Round an execution/checkpoint endpoint up to an atomic input boundary.
+  /// Bidirectional image blocks need their complete token group in one work
+  /// unit. Must be monotone, idempotent, and never exceed the prepared prompt.
+  /// Text contexts preserve the scheduler's budget exactly.
+  [[nodiscard]] virtual std::size_t PrefillBoundary(
+      std::size_t requested) const {
+    return requested;
+  }
 };
 
 struct TextPreparedPrompt {
@@ -303,7 +311,8 @@ public:
   virtual void PrepareBatchExecution(TextRunnerState& state) const {
     (void)state;
   }
-  /// Processes at most max_input_tokens, yielding after one model-owned
+  /// Processes at most max_input_tokens after prompt-context boundary rounding,
+  /// yielding after one model-owned
   /// chunk even when the scheduler grants the whole remaining prompt.
   [[nodiscard]] virtual TextPrefillStep Prefill(
       TextRunnerState& state, std::span<const TextRunnerToken> prompt,

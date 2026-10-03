@@ -551,6 +551,19 @@ struct TextRunnerPool::Request::Impl {
     // Freeze it before prefill, then retain this turn's own stable boundary
     // before mutable assistant framing.
     auto count = cache_prefix_tokens == 0 ? prompt.size() : cache_prefix_tokens;
+    const auto boundary = [&](std::size_t requested) {
+      const auto rounded =
+          context ? context->PrefillBoundary(requested) : requested;
+      if (rounded < requested || rounded > prompt.size() ||
+          (context && context->PrefillBoundary(rounded) != rounded))
+        throw std::invalid_argument("invalid atomic prompt boundary");
+      return rounded;
+    };
+    count = boundary(count);
+    for (auto& position : boundaries)
+      position = boundary(position);
+    boundaries.erase(std::unique(boundaries.begin(), boundaries.end()),
+                     boundaries.end());
     // Newly consumed images need a fallback after their embeddings. Otherwise
     // rewritten assistant framing would force those images through prefill
     // again.
@@ -594,7 +607,7 @@ struct TextRunnerPool::Request::Impl {
       const auto count =
           std::min(grid_points, TextRunnerPool::Impl::kIntermediateCheckpoints);
       for (std::size_t point = 1; point <= count; ++point) {
-        const auto position = grid_points * point / count * interval;
+        const auto position = boundary(grid_points * point / count * interval);
         if (position > prefill_offset && position != snapshot_tokens.size() &&
             position != stable_prefix_position &&
             !lease.HasSnapshotFor(
@@ -1045,6 +1058,15 @@ TextPrefillStep TextRunnerPool::Request::Prefill(std::size_t max_input_tokens) {
         max_input_tokens, impl_->checkpoints.front() - impl_->prefill_offset);
 
   const std::size_t remaining = impl_->prompt.size() - impl_->prefill_offset;
+  if (impl_->context) {
+    const auto requested =
+        impl_->prefill_offset + std::min(remaining, max_input_tokens);
+    const auto rounded = impl_->context->PrefillBoundary(requested);
+    if (rounded < requested || rounded > impl_->prompt.size() ||
+        impl_->context->PrefillBoundary(rounded) != rounded)
+      throw std::invalid_argument("invalid atomic prefill endpoint");
+    max_input_tokens = rounded - impl_->prefill_offset;
+  }
   impl_->state_reusable = false;
   // Complete the model frontier at the cache boundary, including logits and
   // draft catch-up. Its snapshot can then be restored independently.
@@ -1491,6 +1513,13 @@ TextRunnerPool::Request TextRunnerPool::Acquire(
   }
   if (cache_prefix_tokens > prompt.size())
     throw std::invalid_argument("cache prefix exceeds prompt length");
+  if (context && cache_prefix_tokens != 0) {
+    const auto rounded = context->PrefillBoundary(cache_prefix_tokens);
+    if (rounded < cache_prefix_tokens || rounded > prompt.size() ||
+        context->PrefillBoundary(rounded) != rounded)
+      throw std::invalid_argument("invalid atomic cache prefix");
+    cache_prefix_tokens = rounded;
+  }
 
   std::unique_lock admission(impl_->admission_mutex, std::defer_lock);
   while (!admission.try_lock_for(std::chrono::milliseconds(10))) {
