@@ -41,6 +41,8 @@ public:
   }
   [[nodiscard]] InitialOutputState initial_output_state(
       const gufo::server::ChatRequest& request) const override {
+    if (forced_initial)
+      return *forced_initial;
     return request.reasoning.enabled.value_or(false)
                ? InitialOutputState::kReasoning
                : InitialOutputState::kContent;
@@ -168,6 +170,7 @@ public:
   gufo::sampling::SamplingConfig last_sampling;
   std::optional<gufo::server::TextGenerationErrorCode> reject_on_start;
   gufo::models::common::OutputDialect dialect;
+  std::optional<InitialOutputState> forced_initial;
 
 private:
   std::mutex mutex;
@@ -2828,6 +2831,42 @@ void TestMalformedToolDiagnostics() {
   }
 }
 
+void TestAutoDialectChunkBoundaries() {
+  const auto body = gufo::json::parse(
+      R"({"model":"test-model","messages":[{"role":"user","content":"Answer"}]})");
+  for (const bool gemma : {false, true})
+    for (const std::string reasoning : {"", "reason"}) {
+      gufo::models::common::OutputDialect dialect;
+      if (gemma) {
+        dialect.think_start = "<|channel>thought\n";
+        dialect.think_end = "<channel|>";
+        dialect.qwen_tool_calls = false;
+        dialect.dsml_tool_calls = false;
+      }
+      const auto raw =
+          dialect.think_start + reasoning + dialect.think_end + "\nAnswer";
+      for (const bool responses : {false, true})
+        for (const bool stream : {false, true})
+          for (std::size_t width = 1; width <= raw.size(); ++width) {
+            FakeBackend backend;
+            backend.dialect = dialect;
+            backend.forced_initial =
+                gufo::server::TextGenerationBackend::InitialOutputState::kAuto;
+            backend.pieces.clear();
+            for (std::size_t offset = 0; offset < raw.size(); offset += width)
+              backend.pieces.push_back(raw.substr(offset, width));
+            const auto response =
+                ToolFixtureResponse(body, backend, responses, stream);
+            Expect(response.status == 200,
+                   "auto dialect accepts buffered and streamed output");
+            const auto output = ReadToolFixture(response, responses, stream);
+            Expect(output.text == "Answer" && output.reasoning == reasoning,
+                   "coalesced and split delimiters have identical "
+                   "Chat/Responses output");
+          }
+    }
+}
+
 void TestOutputDialectDelimiters() {
   FakeBackend backend;
   backend.dialect.think_start = "[think]";
@@ -2941,6 +2980,7 @@ void TestOutputDialectToolProtocols() {
 
 int main() {
   TestOutputDialectDelimiters();
+  TestAutoDialectChunkBoundaries();
   TestOutputDialectToolProtocols();
   TestMalformedToolDiagnostics();
   TestMultilineToolEdits();

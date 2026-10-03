@@ -1804,14 +1804,14 @@ public:
         if (view.empty()) {
           return true;
         }
-        if (think_start.starts_with(view)) {
-          if (view == think_start) {
-            state_ = State::kThinking;
-            pending_.clear();
-          }
+        if (view.starts_with(think_start)) {
+          state_ = State::kThinking;
+          pending_.erase(0, pending_.size() - view.size() + think_start.size());
+        } else if (!final && think_start.starts_with(view)) {
           return true;
+        } else {
+          state_ = State::kContent;
         }
-        state_ = State::kContent;
       }
     }
 
