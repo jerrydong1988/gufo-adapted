@@ -45,7 +45,7 @@
           <label for="speculative">Speculative decoding</label>
           <select id="speculative" name="speculative"></select>
           <div data-speculative-file="mtp_model" hidden><label for="mtp_model">MTP sidecar</label>
-            <div class="path-row"><input id="mtp_model" name="mtp_model" type="text" spellcheck="false" placeholder="Matching shared Q8_0 sidecar"><button type="button" data-browse="mtp_model" data-kind="gguf" aria-label="Choose MTP sidecar">Choose</button></div>
+            <div class="path-row"><input id="mtp_model" name="mtp_model" type="text" spellcheck="false" placeholder="Matching assistant sidecar"><button type="button" data-browse="mtp_model" data-kind="gguf" aria-label="Choose MTP sidecar">Choose</button></div>
             <p id="mtp_model-filename" class="selected-file"></p>
           </div>
           <div data-speculative-file="dflash_model" hidden><label for="dflash_model">DFlash2 draft</label>
@@ -53,11 +53,11 @@
             <p id="dflash_model-filename" class="selected-file"></p>
             <p class="hint">Uses Gufo's adaptive DFlash2 defaults.</p>
           </div>
-          <p class="hint">Choose the mode for your main model and a matching draft file. Flash-Next uses an MTP sidecar; Qwen3.8-27B uses DFlash2.</p>
+          <p class="hint">Choose the mode for your main model and a matching draft file. Flash-Next and Gemma 4 use MTP sidecars; Qwen3.8-27B uses DFlash2.</p>
           <label for="mmproj">Vision projector <span class="optional">optional</span></label>
           <div class="path-row"><input id="mmproj" name="mmproj" type="text" spellcheck="false" placeholder="Auto-detect"><button type="button" data-browse="mmproj" data-kind="gguf" aria-label="Choose vision projector">Choose</button></div>
           <p id="mmproj-filename" class="selected-file"></p>
-          <p class="hint">Leave blank for Gufo to auto-detect a compatible projector.</p>
+          <p id="vision-hint" class="hint">Leave blank for Gufo to auto-detect a compatible projector.</p>
           <div class="divider"></div>
           <label for="executable">Gufo executable</label>
           <div class="path-row"><input id="executable" name="executable" type="text" spellcheck="false" placeholder="…\build\release\gufo.exe"><button type="button" data-browse="executable" data-kind="executable" aria-label="Choose Gufo executable">Choose</button></div>
@@ -67,7 +67,7 @@
           <section class="card" aria-labelledby="run-heading">
             <div class="section-title"><span class="section-number">02</span><h2 id="run-heading">Run settings</h2></div>
             <div class="field-grid">
-              <div><label for="context">Context tokens</label><input id="context" name="context" type="number" min="0" max="4294967295" step="1" required><p class="hint">0 uses the model's native context.</p></div>
+              <div><label for="context">Context tokens</label><input id="context" name="context" type="number" min="0" max="4294967295" step="1" required><p id="context-hint" class="hint">0 uses the model's native context.</p></div>
               <div><label for="max_tokens">Max output tokens</label><input id="max_tokens" name="max_tokens" type="number" min="-1" max="4294967295" step="1" required><p class="hint">-1 continues until EOS or context full.</p></div>
               <div><label for="think">Thinking</label><select id="think" name="think"><option value="on">On</option><option value="off">Off</option><option value="auto">Model default</option></select></div>
               <div><label for="reasoning_effort">Default thinking level</label><select id="reasoning_effort" name="reasoning_effort" aria-describedby="thinking-hint"></select></div>

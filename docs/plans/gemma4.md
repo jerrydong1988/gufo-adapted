@@ -429,3 +429,32 @@ acceptance counts, memory accounting and explicit unmeasured coverage are retain
 in [qualification.json](../models/gemma4/qualification.json). Shared fixes are
 separate local commits `c9044a8` (reasoning delimiters) and `ddade81` (atomic
 image prefill/cache endpoints). No existing-model GPU arithmetic is changed.
+
+## GUI follow-up (2026-10-02)
+
+Added **Gemma 4 31B** to the GUI's existing model-family selector for both
+qualified artifact sets. The shared family definition bounds context to
+2..4096, fixes one session, disables persistent caching and restricts reasoning
+levels to the model default. Selecting the family normalizes unsupported
+settings without changing sampling or paths. Explicit family defaults set
+Thinking Off, speculative decoding Off and a two-token cap for optional MTP.
+Gemma MTP commands include the assistant path and draft cap, without Flash-Next
+policy/vocabulary/lookup flags. Vision guidance requires the matching BF16
+projector explicitly and describes a blank field as text only.
+
+Validation: all 37 Python GUI tests and all 9 JavaScript DOM tests pass.
+The added checks cover both quantization filename forms, sidecar restoration,
+family switching, bounded context/session controls, rejection of unsupported
+settings, native argument construction and preservation of saved configurations.
+File validation and command construction also pass against all six real local
+artifacts, with speculative decoding Off and MTP for each target set.
+An isolated Flask/Waitress browser smoke check exercised the actual QAT paths,
+family defaults, MTP controls and command preview; the server remained stopped
+and the user's saved launcher file remained unchanged. This GUI-only follow-up
+does not change engine arithmetic or require another model/GPU qualification.
+
+```powershell
+.\build\gui-env\Scripts\python.exe -m unittest discover -s tests/tools -p "gui_*_test.py"
+node --experimental-vm-modules --test tests/tools/gui_dom_test.mjs
+python tools/ci/check-docs.py
+```

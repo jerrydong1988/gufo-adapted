@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from files import check_gguf
+from models import MODEL_FAMILIES
 from settings import validate_settings
 
 
@@ -45,10 +46,13 @@ def build_command(values, *, check_files=False):
         command.extend(["--mmproj", settings["mmproj"]])
     command.extend(["--speculative", settings["speculative"]])
     if settings["speculative"] == "mtp":
-        for key in ("mtp_model", "draft_tokens", "mtp_policy", "mtp_draft_vocab"):
+        for key in ("mtp_model", "draft_tokens"):
             command.extend(["--" + key.replace("_", "-"), str(settings[key])])
-        if settings["prompt_lookup"]:
-            command.append("--prompt-lookup")
+        if MODEL_FAMILIES[settings["model_family"]].get("mtp_controllers", True):
+            for key in ("mtp_policy", "mtp_draft_vocab"):
+                command.extend(["--" + key.replace("_", "-"), str(settings[key])])
+            if settings["prompt_lookup"]:
+                command.append("--prompt-lookup")
     elif settings["speculative"] == "dflash2":
         command.extend(["--dflash-model", settings["dflash_model"]])
     return command

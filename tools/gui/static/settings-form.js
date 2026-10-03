@@ -10,6 +10,11 @@ export function createSettingsForm(initial, families, modes, onEdit) {
   const keys = Object.keys(initial);
   let previousModel = initial.model;
   let previousFamily = initial.model_family;
+  const integerLimits = Object.fromEntries(["context", "sessions"].map((key) => [key, [$(key).min, $(key).max]]));
+  const visionHint = $("vision-hint").textContent;
+  const visionPlaceholder = $("mmproj").placeholder;
+  const reasoningHint = $("thinking-hint").textContent;
+  const contextHint = $("context-hint").textContent;
   $("model_family").replaceChildren(...Object.entries(families).map(([id, family]) => new Option(family.label, id)));
 
   function values() {
@@ -34,9 +39,25 @@ export function createSettingsForm(initial, families, modes, onEdit) {
         $(spec.options_id).disabled = mode !== id;
       }
     }
-    $("reasoning_effort").disabled = $("think").value === "off";
-    $("disk-cache-options").disabled = !$("cache_disk").checked;
+    $("reasoning_effort").disabled = $("think").value === "off" || family.reasoning_effort.length === 1;
+    $("cache_disk").disabled = family.disk_cache === false;
+    $("disk-cache-options").disabled = family.disk_cache === false || !$("cache_disk").checked;
+    for (const [key, limits] of Object.entries(integerLimits)) {
+      const [min, max] = family.integer_limits?.[key] ?? limits;
+      $(key).min = min;
+      $(key).max = max;
+      $(key).disabled = min === max;
+    }
+    for (const item of document.querySelectorAll("[data-mtp-controller]")) {
+      item.hidden = family.mtp_controllers === false;
+      for (const input of item.querySelectorAll("input, select")) input.disabled = family.mtp_controllers === false;
+    }
     $("family-hint").textContent = family.hint;
+    $("vision-hint").textContent = family.vision_hint ?? visionHint;
+    $("mmproj").placeholder = family.vision_placeholder ?? visionPlaceholder;
+    $("thinking-hint").textContent = family.reasoning_hint ?? reasoningHint;
+    $("context-hint").textContent = family.integer_limits?.context
+      ? `${family.integer_limits.context[0]} to ${family.integer_limits.context[1]} combined text/image tokens.` : contextHint;
     $("family-defaults").hidden = !Object.keys(family.defaults).length;
     for (const key of ["model", "mtp_model", "dflash_model", "mmproj"]) {
       $(key).title = $(key).value;
@@ -68,6 +89,15 @@ export function createSettingsForm(initial, families, modes, onEdit) {
       const family = families[settings.model_family];
       if (!family.speculative.includes(settings.speculative)) settings.speculative = "off";
       if (!family.reasoning_effort.includes(settings.reasoning_effort)) settings.reasoning_effort = "auto";
+      for (const [key, [min, max]] of Object.entries(family.integer_limits ?? {})) {
+        settings[key] = Math.min(max, Math.max(min, settings[key]));
+      }
+      if (family.disk_cache === false) settings.cache_disk = false;
+      if (family.mtp_controllers === false) {
+        settings.mtp_policy = "length";
+        settings.mtp_draft_vocab = "full";
+        settings.prompt_lookup = false;
+      }
       apply(settings);
     }
     update();

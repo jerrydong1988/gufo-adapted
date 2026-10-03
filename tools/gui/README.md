@@ -26,13 +26,15 @@ launcher opens at **http://127.0.0.1:8090**. Keep its terminal open.
 1. Choose your **models folder**, then select a main GGUF. Browse into subfolders
    or paste a full path. Split models appear once; select their first shard.
 2. Choose the **Model family**, then **Speculative decoding**: **Off**, **MTP**
-   for Flash-Next, or **DFlash2** for Qwen3.8-27B. MTP uses Flash-Next's matching shared Q8_0 sidecar;
-   DFlash2 uses a matching Qwen3.8-27B DFlash2 draft. Selecting a file does not
-   change the mode. The picker shows local files; Gufo still decides which
-   models and tensor formats it supports.
-3. Optionally choose a **vision projector**. A blank field means **auto-detect**,
-   not disabled vision. An explicitly selected incompatible projector fails
-   during model loading.
+   for Flash-Next or Gemma 4 31B, or **DFlash2** for Qwen3.8-27B. Flash-Next MTP
+   uses its matching shared Q8_0 sidecar; Gemma MTP uses the matching assistant
+   from its target model's folder. DFlash2 uses a matching Qwen3.8-27B draft.
+   Selecting a file does not change the mode. The picker shows local files;
+   Gufo still decides which models and tensor formats it supports.
+3. Optionally choose a **vision projector**. For Gemma 4, choose its matching
+   BF16 projector explicitly; a blank field means text only. Other families
+   auto-detect a compatible projector when blank. An explicitly selected
+   incompatible projector fails during model loading.
 4. Check the **Gufo executable**. It defaults to this checkout's
    `build/release/gufo.exe`; another built copy can be selected. Leave that
    executable alongside its runtime DLLs and kernel libraries.
@@ -77,7 +79,14 @@ decoding to Off. Loading a preset restores all its fields together, including it
 sidecars. Changing the model family limits available speculative modes without
 rewriting sampler values. **Use family defaults** explicitly applies the family's
 curated defaults: Flash-Next's thinking sampler, or Qwen3.8-27B's model-default
-thinking controls (leaving sampling unchanged). The **Other / existing
+thinking controls (leaving sampling unchanged). Gemma 4 31B supports both
+qualified [conventional and QAT artifact sets](../../docs/models/gemma4/README.md).
+Selecting it bounds context to 2..4096 combined text/image tokens, sets one
+session, and disables disk caching and Flash-Next MTP controllers. **Use family
+defaults** sets 4K context, Thinking Off, speculative decoding Off, and a
+two-token draft cap for optional MTP, leaving sampling and file paths unchanged.
+MTP currently runs slower on the qualified workload. Gemma has no adjustable
+thinking levels; use Thinking On or Off. The **Other / existing
 configuration** family preserves the existing options for unclassified models.
 Family selection guides the controls; Gufo still validates artifact compatibility.
 
@@ -124,7 +133,8 @@ for skip behavior and budget details. Stop/Exit do not drain pending writes.
 These controls are saved per preset. Existing presets receive the defaults in
 memory without rewriting the saved file. Use **Save preset** to persist changes;
 they apply on the next engine launch. RAM continuation caching remains active
-with disk caching off.
+with disk caching off. Gemma 4 supports RAM caching; its disk-cache controls
+are disabled because persistent snapshots are not supported yet.
 
 ## Options and checks
 
@@ -150,8 +160,9 @@ Restart the launcher after updating its code to load the new panel.
   `gui.ps1 -Port 8091` changes the control panel's port; the form sets Gufo's port.
 - `gui.ps1 -Config C:\path\launcher.json` uses another settings file.
 - `gui.ps1 -NoBrowser` starts without opening a browser.
-- More options exposes disk caching, sessions, penalties and Flash-Next MTP options. MTP
-  options are passed only when MTP is enabled. Latin draft vocabulary is
+- More options exposes disk caching, sessions, penalties and MTP options. MTP
+  options are passed only when MTP is enabled. Gemma exposes the draft-token cap
+  (1..7) and omits Flash-Next controller flags. Latin draft vocabulary is
   intended for English/code; survival and lookup target single-session use.
 - DFlash2 uses the engine's adaptive defaults. MTP options, including its draft
   token cap, are not passed to DFlash2. If Qwen3.8-27B reports `MTP HTTP decoding
@@ -204,7 +215,7 @@ file selection, and runtime display; they do not verify browser layout.
   `theme.js` remains independent and runs before first paint.
 
 To add another text-model family, define its supported modes, reasoning levels,
-and explicit defaults in `models.py`. Existing controls are reused. A genuinely
+limits and explicit defaults in `models.py`. Existing controls are reused. A genuinely
 new option also needs validation, command construction, a small template section,
 and focused tests. The family definitions describe UI choices, not detected
 runtime capabilities. The GUI continues to manage one `serve llm` process.

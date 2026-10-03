@@ -122,6 +122,33 @@ class ServerTest(unittest.TestCase):
         self.assertNotIn("--prompt-lookup", command)
         self.assertEqual(self.config.read_bytes(), before)
 
+    def test_gemma4_launch_leaves_existing_saved_configuration_alone(self):
+        self.save(DEFAULTS | {"context": 200000, "speculative": "mtp", "temperature": 0.7})
+        before = self.config.read_bytes()
+        initial = self.client.get("/api/settings", headers=self.headers).json
+        family = initial["families"]["gemma4"]
+        self.assertEqual(family["label"], "Gemma 4 31B")
+        self.manager.start.assert_not_called()
+        exe, model, assistant, projector = [self.root / name for name in
+                                            ("gufo.exe", "gemma.gguf", "mtp.gguf", "mmproj-BF16.gguf")]
+        exe.touch()
+        for path in (model, assistant, projector):
+            path.write_bytes(b"GGUF")
+        settings = DEFAULTS | family["defaults"] | {
+            "model_family": "gemma4", "executable": str(exe), "model": str(model),
+            "mtp_model": str(assistant), "mmproj": str(projector), "speculative": "mtp",
+        }
+        preview = self.client.post("/api/preview", json=settings, headers=self.headers)
+        self.assertEqual(preview.status_code, 200)
+        self.assertIn("--context 4096", preview.json["command"])
+        self.assertEqual(self.config.read_bytes(), before)
+        self.assertEqual(self.start(settings).status_code, 200)
+        command = self.manager.start.call_args.args[0]
+        self.assertEqual(command[command.index("--mtp-model") + 1], str(assistant))
+        for flag in ("--mtp-policy", "--mtp-draft-vocab", "--prompt-lookup", "--cache-disk"):
+            self.assertNotIn(flag, command)
+        self.assertEqual(self.config.read_bytes(), before)
+
     def test_exit_stops_owned_process_and_rejects_a_racing_start(self):
         response = self.client.post("/api/exit", headers=self.headers)
         self.assertEqual(response.status_code, 200)

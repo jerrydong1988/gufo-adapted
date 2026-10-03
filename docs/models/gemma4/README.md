@@ -52,6 +52,20 @@ Snapshots and fork store actual valid ring rows, hidden state and logits. Disk
 snapshots remain disabled. Opening the GUI does not load Gemma; existing GUI
 settings and model selections are preserved.
 
+## GUI
+
+Restart the launcher after updating, choose **Gemma 4 31B** under **Model family**,
+and select either qualified target GGUF from its `experimental` subfolder.
+Click **Use family defaults** for 4K context, one session, Thinking Off and
+speculative decoding Off. Sampling remains editable. Save a named preset to
+keep each artifact set and its own sidecars together.
+
+For images, select `mmproj-BF16.gguf` from the same target folder; leaving it
+blank serves text only. Optional MTP requires **Speculative decoding → MTP**
+and that folder's `mtp-gemma-4-31B-it.gguf`. The GUI exposes only the supported
+draft-token cap and disables disk caching. See the
+[launcher guide](../../../tools/gui/README.md) for persistence and process controls.
+
 ## Reproduce qualification
 
 Configure/build the `gpu-test` preset and `gemma4_validate` target. The tool

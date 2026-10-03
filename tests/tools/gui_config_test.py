@@ -10,6 +10,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools/gui"))
 from command import build_command
 from files import browse_directory, check_gguf
+from models import MODEL_FAMILIES
 from presets import load_document, new_document, resolved_settings, save_document
 from settings import DEFAULTS, validate_settings
 
@@ -156,6 +157,54 @@ class ConfigTest(unittest.TestCase):
             for invalid in (model, model / "child"):
                 with self.assertRaisesRegex(ValueError, "folder, not a file"):
                     build_command(settings | {"cache_disk_dir": str(invalid)}, check_files=True)
+
+    def test_gemma4_launch_and_preset_for_each_quantization(self):
+        with tempfile.TemporaryDirectory(prefix="gemma files ") as directory:
+            root = Path(directory)
+            exe = root / "gufo.exe"
+            exe.touch()
+            for name in ("gemma-4-31B-it-UD-Q4_K_XL", "gemma-4-31B-it-qat-UD-Q4_K_XL"):
+                with self.subTest(model=name):
+                    folder = root / name
+                    folder.mkdir()
+                    model, assistant, projector = [folder / filename for filename in
+                                                   (name + ".gguf", "mtp-gemma-4-31B-it.gguf", "mmproj-BF16.gguf")]
+                    for path in (model, assistant, projector):
+                        path.write_bytes(b"GGUF")
+                    settings = DEFAULTS | MODEL_FAMILIES["gemma4"]["defaults"] | {
+                        "model_family": "gemma4", "executable": str(exe), "model": str(model),
+                        "mtp_model": str(assistant), "mmproj": str(projector), "temperature": 0.42,
+                    }
+                    command = build_command(settings, check_files=True)
+                    for flag, value in (("--context", "4096"), ("--sessions", "1"), ("--think", "off"),
+                                        ("--speculative", "off"), ("--mmproj", str(projector))):
+                        self.assertEqual(command[command.index(flag) + 1], value)
+                    self.assertNotIn("--mtp-model", command)
+                    settings.update(speculative="mtp", think="on", draft_tokens=4)
+                    command = build_command(settings, check_files=True)
+                    self.assertEqual(command[command.index("--mtp-model") + 1], str(assistant))
+                    self.assertEqual(command[command.index("--draft-tokens") + 1], "4")
+                    for flag in ("--mtp-policy", "--mtp-draft-vocab", "--prompt-lookup",
+                                 "--dflash-model", "--reasoning-effort", "--cache-disk", "--model-family"):
+                        self.assertNotIn(flag, command)
+                    path = folder / "launcher.json"
+                    save_document(path, new_document(settings))
+                    self.assertEqual(resolved_settings(load_document(path)), settings)
+
+    def test_gemma4_rejects_unsupported_launch_options(self):
+        settings = DEFAULTS | MODEL_FAMILIES["gemma4"]["defaults"] | {"model_family": "gemma4"}
+        for change, error in (({"context": 0}, "context"), ({"context": 1}, "context"),
+                              ({"context": 4097}, "context"), ({"sessions": 2}, "sessions"),
+                              ({"cache_disk": True}, "disk continuation"),
+                              ({"reasoning_effort": "low"}, "reasoning level"),
+                              ({"speculative": "dflash2"}, "does not support"),
+                              ({"speculative": "mtp", "mtp_policy": "survival"}, "MTP controllers"),
+                              ({"speculative": "mtp", "mtp_draft_vocab": "latin"}, "MTP controllers"),
+                              ({"speculative": "mtp", "prompt_lookup": True}, "prompt lookup")):
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError, error):
+                build_command(settings | change)
+        for context in (2, 4096):
+            self.assertEqual(validate_settings(settings | {"context": context})["context"], context)
 
     def test_folder_picker_groups_shards_without_loading_weights(self):
         with tempfile.TemporaryDirectory() as directory:

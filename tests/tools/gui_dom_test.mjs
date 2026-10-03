@@ -83,6 +83,65 @@ test("restoring a preset keeps sidecars; changing its model clears them", async 
   assert.equal(form.values().speculative, "off");
 });
 
+test("Gemma selection bounds launch settings and preserves sampling and preset sidecars", async (t) => {
+  const env = await setup(t);
+  const { createSettingsForm } = await env.use("settings-form.js");
+  const { settings, families, modes } = env.initial;
+  const form = createSettingsForm(settings, families, modes, () => {});
+  const flash = { ...settings, model_family: "qwen38_flash_next", speculative: "mtp",
+    context: 32768, sessions: 4, cache_disk: true, temperature: 0.42, reasoning_effort: "low",
+    mtp_policy: "survival", mtp_draft_vocab: "latin", prompt_lookup: true };
+  form.apply(flash);
+  edit(env, "model_family", "gemma4");
+  assert.equal(env.$("model_family").selectedOptions[0].textContent, "Gemma 4 31B");
+  assert.equal(form.values().context, 4096);
+  assert.equal(form.values().sessions, 1);
+  assert.equal(form.values().temperature, 0.42);
+  assert.equal(form.values().think, "on");
+  assert.equal(form.values().cache_disk, false);
+  assert.equal(env.$("cache_disk").disabled, true);
+  assert.equal(env.$("disk-cache-options").disabled, true);
+  assert.equal(env.$("sessions").disabled, true);
+  assert.equal(env.$("context").min, "2");
+  assert.equal(env.$("context").max, "4096");
+  assert.equal(env.$("reasoning_effort").disabled, true);
+  assert.equal(form.values().reasoning_effort, "auto");
+  assert.equal(form.values().mtp_policy, "length");
+  assert.equal(form.values().mtp_draft_vocab, "full");
+  assert.equal(form.values().prompt_lookup, false);
+  assert.equal(env.$("mtp-options").hidden, false);
+  assert.equal(env.$("mtp_policy").disabled, true);
+  assert.ok([...env.window.document.querySelectorAll("[data-mtp-controller]")].every((item) => item.hidden));
+  assert.deepEqual(Array.from(env.$("speculative").options, (option) => option.value), ["off", "mtp"]);
+  assert.match(env.$("vision-hint").textContent, /matching BF16/);
+  assert.match(env.$("vision-hint").textContent, /text only/);
+  edit(env, "context", "4097");
+  assert.throws(() => form.valid());
+  env.$("family-defaults").click();
+  assert.equal(form.values().context, 4096);
+  assert.equal(form.values().think, "off");
+  assert.equal(form.values().speculative, "off");
+  assert.equal(form.values().draft_tokens, 2);
+  assert.equal(form.values().temperature, 0.42);
+  const gemma = { ...form.values(), context: 3200, speculative: "mtp", draft_tokens: 4,
+    model: "C:\\Gemma QAT\\target.gguf", mtp_model: "C:\\Gemma QAT\\mtp.gguf", mmproj: "C:\\Gemma QAT\\mmproj-BF16.gguf" };
+  form.apply(flash);
+  assert.equal(env.$("context").min, "0");
+  assert.equal(env.$("context").max, "4294967295");
+  assert.equal(env.$("sessions").disabled, false);
+  assert.equal(env.$("cache_disk").disabled, false);
+  assert.equal(env.$("mtp_policy").disabled, false);
+  assert.match(env.$("vision-hint").textContent, /auto-detect/);
+  form.apply(gemma);
+  assert.deepEqual({ ...form.values() }, gemma);
+  assert.equal(form.valid(), true);
+  assert.equal(env.$("mtp-options").hidden, false);
+  assert.equal(env.$("cache_disk").disabled, true);
+  edit(env, "model", "C:\\Gemma conventional\\target.gguf");
+  for (const key of ["mtp_model", "dflash_model", "mmproj"]) assert.equal(form.values()[key], "");
+  assert.equal(form.values().speculative, "off");
+});
+
 test("reasoning preservation and disk caching restore independently of thinking", async (t) => {
   const env = await setup(t);
   const { createSettingsForm } = await env.use("settings-form.js");
