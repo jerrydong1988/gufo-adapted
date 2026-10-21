@@ -37,6 +37,24 @@ Use this entry format:
 
 ## Recorded adaptations
 
+### 2026-10-21 — Runtime identity and busy shutdown confirmation
+
+- Source: [thomas9120/gufo-adapted@41cd7a2341b23e526d45c773de570d158237f2e0](https://github.com/thomas9120/gufo-adapted/commit/41cd7a2341b23e526d45c773de570d158237f2e0).
+- Local: `5e024f5`; cherry-picked with source attribution. The following
+  documentation commit removes two extra trailing blank lines in test files.
+- Adaptation: imported without behavioral changes. The launcher's status polls
+  the owned engine's `/props`, displays the loaded model/build/context/vision,
+  and clears stale identity. Stop/Exit asks for confirmation when the latest
+  metrics show active or queued work. Idle live rates show a dash while completed
+  measurements remain visible. Settings, model aliases and inference code are
+  unchanged; existing `0817d23` metadata support is sufficient.
+- Areas: `tools/gui/` and GUI Python/DOM tests.
+- Validation: native Windows GUI Python tests 45/45 and DOM tests 23/23 pass
+  without skips; documentation checks pass. Fork CI and real-model deployment
+  checks are recorded separately once complete. No engine rebuild or numerical
+  requalification is needed for this GUI-only import.
+- Status: retained; deployment validation in progress.
+
 ### 2026-10-17 — Keep the cached conversation when tool choice changes
 
 - Source: [gufo-org/gufo@23d970d0ca0ef694dafec64131269f9c24590940](https://github.com/gufo-org/gufo/commit/23d970d0ca0ef694dafec64131269f9c24590940)
@@ -1263,6 +1281,33 @@ Use this entry format:
 Record upstream candidates examined against this fork and deliberately not
 imported, newest first. These are decisions and their evidence, not imports;
 revisit when the blocking condition changes.
+
+### 2026-10-21 — Windows branch migration and experimental inference changes
+
+- Pinned the maintained Windows upstream at
+  [338a95f045cc1434469ba06b68efefd83c8c4710](https://github.com/thomas9120/gufo-adapted/commit/338a95f045cc1434469ba06b68efefd83c8c4710)
+  (`Windows-Gufo-2026.10.24`) and its new `windows-main` at
+  [3394a88101ecfa4215c3a15889bd847bd90f2b7f](https://github.com/thomas9120/gufo-adapted/commit/3394a88101ecfa4215c3a15889bd847bd90f2b7f).
+  The `0817d23..338a95f` range contains 13 commits including merges; the
+  independent GUI improvement above is imported.
+- Defer IQ F16/paired prefill (`42274ba`, `ec31961`), its evidence/documentation
+  (`a54ab6d`, `f5e36b7`, `c2875e0`) and merge `8925dc9`: the upstream
+  [quality record](https://github.com/thomas9120/gufo-adapted/blob/338a95f045cc1434469ba06b68efefd83c8c4710/docs/models/qwen3.8-flash-next/QUALITY.md)
+  still reports an IQ4_XS exact-gate failure and no declared numerical acceptance
+  limits for its intentional arithmetic change. Later fixes do not qualify it.
+- Defer sparse query bounds/deterministic BF16 projection/absolute query grouping
+  (`ba92dc6`, `4fc7df4`, `3645073`, merge `5d14289`). They address chunk-dependent
+  sparse attention, but change prefill logits above 2048 positions; no matched
+  long-context qualification was performed for this deployment. Existing
+  chunk-boundary limitations remain. Merge `db32499` contains the GUI import.
+- Defer automatic migration (`338a95f`) to the rebased `windows-main`. Its net
+  difference is 725 files, including cache ownership/format/CLI changes and
+  removal of this fork's qualification declarations and provenance ledger.
+  A full migration needs separate compatibility, cache rollback, numerical,
+  vision/tool/history and native Windows checks. Do not run the new updater
+  against this maintained fork or claim the rebased branch is deployed.
+- The published tag is a source release; it supplies no prebuilt assets.
+  Keep the verified `0817d23` engine/runtime and saved Flash-Next/27B profiles.
 
 
 
