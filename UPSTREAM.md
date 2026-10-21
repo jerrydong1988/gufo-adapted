@@ -50,10 +50,18 @@ Use this entry format:
   unchanged; existing `0817d23` metadata support is sufficient.
 - Areas: `tools/gui/` and GUI Python/DOM tests.
 - Validation: native Windows GUI Python tests 45/45 and DOM tests 23/23 pass
-  without skips; documentation checks pass. Fork CI and real-model deployment
-  checks are recorded separately once complete. No engine rebuild or numerical
-  requalification is needed for this GUI-only import.
-- Status: retained; deployment validation in progress.
+  without skips; documentation checks and all four
+  [Fork PR CI jobs](https://github.com/jerrydong1988/gufo-adapted/actions/runs/39619469218)
+  pass. Real saved Flash-Next Q4_K_XL/MTP and 27B Q8_K_XL/DFlash2 profiles
+  report matching runtime identity and pass installed Octop adapter buffered,
+  streaming and image requests through both configured providers. 27B daily
+  sends `reasoning_effort=none`; thinking sends `high`. The canonical desktop
+  launcher also passes the 27B checks. All 294 engine/runtime file hashes match
+  the previous deployment, and saved launcher settings are byte-identical.
+  No engine rebuild, new numerical qualification or speed claim. Local evidence:
+  `build/sync-20261021-gui-status/`.
+- Status: retained, merged through [PR #2](https://github.com/jerrydong1988/gufo-adapted/pull/2)
+  and locally deployed. Test engines and launchers stopped; initial state restored.
 
 ### 2026-10-17 — Keep the cached conversation when tool choice changes
 
@@ -1303,6 +1311,13 @@ revisit when the blocking condition changes.
 - Defer automatic migration (`338a95f`) to the rebased `windows-main`. Its net
   difference is 725 files, including cache ownership/format/CLI changes and
   removal of this fork's qualification declarations and provenance ledger.
+  Both Windows stores explicitly throw "Windows disk cache is unavailable
+  pending durability and access-control qualification" in `src/cache/disk.cpp`
+  and `src/cli/serve/continuation_disk_store.cpp`; both local saved profiles
+  enable disk caching. The new branch's
+  [Windows status](https://github.com/thomas9120/gufo-adapted/blob/3394a88101ecfa4215c3a15889bd847bd90f2b7f/docs/WINDOWS.md)
+  also says old `mtp_draft_vocab`, `prompt_lookup` and `debug_tool_calls`
+  settings are ignored. This is a concrete configuration compatibility gap.
   A full migration needs separate compatibility, cache rollback, numerical,
   vision/tool/history and native Windows checks. Do not run the new updater
   against this maintained fork or claim the rebased branch is deployed.
