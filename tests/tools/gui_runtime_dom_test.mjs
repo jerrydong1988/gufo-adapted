@@ -168,4 +168,3 @@ test("performance distinguishes live rates, completed speeds, legacy engines, an
       assert.equal(env.$(id).textContent, "—");
   }
 });
-

@@ -58,4 +58,3 @@ export function edit(env, id, value) {
   env.$(id).dispatchEvent(new env.window.Event("change", { bubbles: true }));
 }
 export const tick = () => new Promise((resolve) => setImmediate(resolve));
-
