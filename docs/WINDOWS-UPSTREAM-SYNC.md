@@ -488,11 +488,13 @@ changes. PR #699 remains reverted and its forbidden identifiers stay absent.
 
 ## October 23, 2026: PR #711
 
-Status: **imported; Windows CPU gate, formatting, documentation and a live HIP
-smoke passed on `d87a8ae14a`**. Linux/repository and hosted checks remain
-pending. The layer is additive: no production source changed, so no model,
-prefill or cache timing work is claimed or required. The following record-only
-commit does not change that production source.
+Status: **imported and locally qualified on `d87a8ae14a`; the hosted
+Linux/repository and Windows CPU gates passed on `fb8f87a3`; draft
+[PR #82](https://github.com/thomas9120/gufo-windows/pull/82) makes official
+ancestry visible and waits for a merge-commit integration**. The layer is
+additive: no production source changed, so no model, prefill or cache timing
+work is claimed or required. The following record-only commits do not change
+that production source.
 
 - Windows base: `5606d1c67503f28e3a69620ca9be825561efc059` (PR #81 merged).
 - Previous official ancestor: `8a79230617490ff374b38edc002a8e68d241cf68`.
@@ -581,11 +583,17 @@ slice.
   (101 files, 654 links), inventory, maintained-difference and
   reverted-identifier checks pass; `git diff --check` is clean and official
   ancestry is preserved.
-- Pending: the Linux/repository and hosted Windows gates, which need a pushed
-  candidate and draft PR. The leaf's POSIX branches were not built locally, so
-  their coverage rests on upstream CI. No numerical sweep or inference
-  benchmark is refreshed: this layer changes no model, prefill or cache
-  behavior, so the previous timing limits stay as recorded.
+- Hosted gates on `fb8f87a3` (draft PR #82): CPU contracts & repository
+  checks (hosted Linux/Nix) 8m14s, Native CPU contracts 6m01s, Upstream
+  difference guard 1m08s, Installer checks 46s, Browser launcher checks 51s and
+  Conventional Commit title 5s. The hosted Linux build compiles the leaf's
+  POSIX branches, which have no local build on this host. The advisory devlab
+  functional checks were skipped because they need maintainer authorization;
+  they do not gate this layer.
+- No numerical sweep or inference benchmark is refreshed: this layer changes no
+  model, prefill or cache behavior, so the previous timing limits stay as
+  recorded. Integrate with a merge commit, not a squash or rebase, to keep
+  official ancestry on `windows-main`.
 
 ## October 23, 2026: PR #350 qualification follow-up
 
