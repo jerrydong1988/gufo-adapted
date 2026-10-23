@@ -86,8 +86,8 @@ pinned copies return asynchronously. Omitting the upstream waits would therefore
 be speculative; no such patch was made. Physical-memory pressure, other HIP
 failures and a full performance qualification remain open.
 
-Evidence: `build/sync-688-2026-10-23/`, especially
-`long-context-qualification.json`, `qualify-long-context.py`, original/repeat
+Evidence ([evidence archive](#evidence-archive)): `sync-688-2026-10-23/`,
+especially `long-context-qualification.json`, `qualify-long-context.py`, original/repeat
 functional reports, `fixed-image-frontier/` and `copy-semantics.log`.
 Reintroduction must preserve upload draining, pass affected numerical and
 cancel/image/cache/batch checks, verify shared-cache Flash-Next AR/MTP behavior,
@@ -122,6 +122,15 @@ measures 66.46 ms. Explicit startup function preparation also fails (67.02 ms).
 None of those experimental changes is retained. Profiling measurements are
 diagnostic and are not qualification timings.
 
+Reported upstream as [gufo-org/gufo#745](https://github.com/gufo-org/gufo/issues/745).
+Official #733 (lone greedy MTP requests use the small draft head) does not
+fix it. On the October 23 Windows tree plus #733, ABBA fresh-process controls
+measure first decode at 62.47, 61.35 and 64.56 ms with #699 versus 52.93, 51.45
+and 53.58 ms without it; repeat decode, prefill, output and cache/draft counts
+are unchanged. #733 alone is neutral. Evidence
+([evidence archive](#evidence-archive)): `exp-733-2026-10-23/`. #733 itself is
+not imported yet.
+
 **Reintroduction requirement:** review the upstream fix, then run
 [the first-request control](#reproduce-the-first-request-control) against the
 previous Windows binary. Retain every
@@ -129,6 +138,15 @@ phase, output and cache/draft count; a warmed benchmark alone is insufficient.
 A later merge will not automatically undo the revert because #699 is already
 an ancestor. Any deliberate reapplication must cite this entry and pass the
 focused cold-start control plus affected correctness checks.
+
+## Evidence archive
+
+Sync evidence is written to ignored `build/sync-*` directories in the task
+worktree. Before that worktree is removed, its text artifacts (JSON, JSONL,
+logs, scripts, Markdown, diffs) are copied to the maintainer's evidence
+archive under the same directory name; on the reference host that is
+`C:\P2027\gufo-evidence\`. Evidence references in this log name those
+archived directories. Binaries, model files and caches are not archived.
 
 ## Repeatable procedure
 
@@ -260,8 +278,8 @@ Reply with exactly the word ACK."},
 
 ## October 23, 2026: PR #677
 
-Status: **local Windows checks passed; hosted qualification pending on the
-sync PR**.
+Status: **merged** by PR #79 as `ad3696f5`. Local Windows checks passed, and
+all six executed hosted gates passed on `bc6f8c6e` (three GPU jobs skipped).
 
 - Windows base: `041772cbbca43953b5ba6b5322a18118ffe5bdba` (#78 merged).
 - Previous official ancestor: `b0eb5d476d07b659fb0d6a448b56f66d5420a113`.
@@ -270,7 +288,7 @@ sync PR**.
 - Scope: #677 and its predecessor, the official 0.21.0 release commit
   `7110c795` (changelog, `version.txt` and release manifest, imported unchanged).
   #711 and later commits are outside this layer.
-- Evidence: `build/sync-677-2026-10-23/` in the task worktree.
+- Evidence ([evidence archive](#evidence-archive)): `sync-677-2026-10-23/`.
 
 | PR | Upstream change | Merge SHA |
 | --- | --- | --- |
@@ -407,8 +425,8 @@ Final-subset validation, built clean at `852e2455` with TheRock 10.0.0/Clang
 Production executable SHA-256:
 `c8e66f755e4af759be88500ea253cc2a532f740c3989131a41c1b23d52861740`.
 Later documentation/guard records do not change that production source.
-Hosted qualification is pending on the final PR head. Evidence remains in
-`build/sync-688-2026-10-23/`; no full model sweep, speedup or full Windows
+Hosted qualification is pending on the final PR head. Evidence
+([evidence archive](#evidence-archive)): `sync-688-2026-10-23/`; no full model sweep, speedup or full Windows
 performance qualification is claimed.
 
 ## October 23, 2026: PR #709
@@ -422,7 +440,7 @@ Status: **local Windows checks and six executed hosted gates passed on
 - Integration merge: `be07d64b63ce5ecb9eab0c2d16d80a9e48eec668`.
 - Scope: #709 only; the later upstream commits, including release changes,
   are outside this layer.
-- Evidence: `build/sync-709-2026-10-23/` in the task worktree.
+- Evidence ([evidence archive](#evidence-archive)): `sync-709-2026-10-23/`.
 
 | PR | Upstream change | Merge SHA |
 | --- | --- | --- |
@@ -472,9 +490,10 @@ changes. PR #699 remains reverted and its forbidden identifiers stay absent.
 
 Status: **no confirmed YaRN regression after matched controls; timing remains inconclusive**.
 PR #75 merged as `a63f2b4e597a2ece22f817ec6164ff96149abdfe` while local
-qualification was still running. The final October 22 record is retained in
-`build/sync-350-2026-10-22/FINAL-VALIDATION.md`; follow-up commands, hashes and
-per-request results are in `build/sync-350-2026-10-23/`.
+qualification was still running. The final October 22 record is
+`sync-350-2026-10-22/FINAL-VALIDATION.md` in the
+[evidence archive](#evidence-archive); follow-up commands,
+hashes and per-request results are in `sync-350-2026-10-23/`.
 
 The original two API pairs per mode used equal effective 8 GiB RAM budgets.
 They preserve outputs and cache/prefill work, but fail two AR timing cells and
@@ -525,7 +544,7 @@ See the October 23 follow-up above for the latest investigation status.
 - Integration merge: `8170cfc855484da939df61cbcf4c31d125cde772`.
 - Scope: #350 only. The later #709, #688, #710, #677 and #711 commits will
   follow in separately qualified sync PRs.
-- Evidence: `build/sync-350-2026-10-22/` in the task worktree.
+- Evidence ([evidence archive](#evidence-archive)): `sync-350-2026-10-22/`.
 
 | PR | Upstream change | Merge SHA |
 | --- | --- | --- |
@@ -599,7 +618,7 @@ Status: **candidate local checks pass; hosted qualification is recorded on the s
 - Integration: ordinary merge, `45bb338c2e5e42b5d99a985c65be22e05792c1fb`.
 - Fetched `official/main`: `7c819652`. This import intentionally stops at
   #702 as requested; the six newer upstream commits are not included.
-- Evidence: `build/sync-702-2026-10-22/` in the task worktree.
+- Evidence ([evidence archive](#evidence-archive)): `sync-702-2026-10-22/`.
 
 | PR | Upstream change | Merge SHA |
 | --- | --- | --- |
@@ -716,7 +735,7 @@ See [AMD's memory API contract](https://rocm.docs.amd.com/projects/HIP/en/latest
 ### Compatibility and validation
 
 Validation results and pending qualifications are recorded here before handoff.
-Evidence is retained under `build/sync-2026-10-21/` in the task checkout.
+Its `build/sync-2026-10-21/` evidence was not archived and is no longer retained.
 The previous Windows executable and colocated DLLs remain in the maintained
 checkout; the candidate builds into this task's own `build/` directories.
 

@@ -33,7 +33,8 @@ baseline. The original full comparison stays failed. Native lifetime testing
 confirms that failed uploads drain before caller data is reused, for both
 pageable and pinned sources, and that context injection recovers.
 
-Evidence is retained under `build/sync-688-2026-10-23/` in the task checkout.
+Evidence is retained under `sync-688-2026-10-23/` in
+the [evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
 Cold-prompt/benchmark and broader qualification of the rejected optimization
 stopped after the deferral decision. No speedup or full Windows performance
 pass is claimed.
