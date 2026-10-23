@@ -74,6 +74,11 @@ Record imported PRs, revision identities and outcomes in the
   Implementation: [`socket.hpp`](../src/core/platform/socket.hpp),
   [`http_server.cpp`](../src/cli/serve/http_server.cpp) and
   [`websocket.cpp`](../src/cli/serve/websocket.cpp).
+  Upstream's [`net.hpp`](../src/core/platform/net.hpp) leaf (official PR #711)
+  is imported byte-identical but unreferenced: its call sites store handles in
+  `int` and it has no `errno` mapping or cancel-on-shutdown, so keep
+  `socket.hpp` as the implementation until the
+  [convergence slice](WINDOWS-UPSTREAM-SYNC.md#october-23-2026-pr-711) lands.
   Regression: [`http_server_test`](../tests/cli/http_server_test.cpp),
   [`audio_websocket_test`](../tests/cli/audio_websocket_test.cpp) and
   [`win32_server_shutdown_test`](../tests/platform/win32_server_shutdown_test.py).

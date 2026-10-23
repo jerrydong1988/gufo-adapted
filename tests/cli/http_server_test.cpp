@@ -37,6 +37,7 @@
 #include "src/core/platform/socket.hpp"
 
 namespace {
+// WINDOWS: keep native Winsock handles; gufo::platform wrappers replace net::.
 
 using gufo::server::HttpServer;
 using gufo::server::Logger;
