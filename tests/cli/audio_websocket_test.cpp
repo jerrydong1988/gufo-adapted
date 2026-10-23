@@ -20,6 +20,7 @@
 #include "src/core/platform/socket.hpp"
 
 namespace {
+// WINDOWS: keep native Winsock handles; gufo::platform wrappers replace net::.
 using namespace gufo::server;
 namespace json = gufo::json;
 
