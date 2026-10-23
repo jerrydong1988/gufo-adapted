@@ -29,7 +29,12 @@ authorized, then drop it from the maintained difference on the next sync.
   instead of a hard-coded `/tmp` template. Same behavior on Linux.
 - [ ] `src/core/platform/` (`device_memory.*`, `socket.hpp`,
   `cache_directory.hpp`): propose as a platform abstraction with Linux
-  pass-through, so OS branches live in one place.
+  pass-through, so OS branches live in one place. Upstream's PR #711
+  `net.{hpp,cpp}` leaf is already imported byte-identical and keeps the
+  `SOCKET` width, but its call sites still store handles in `int` and it has no
+  `errno` mapping or cancel-on-shutdown, so `socket.hpp` stays the
+  implementation for now (see the
+  [PR #711 sync entry](WINDOWS-UPSTREAM-SYNC.md#october-23-2026-pr-711)).
 - [ ] Create `docs/WINDOWS-UPSTREAM-CANDIDATES.md` tracking file, owner,
   upstream issue/PR, and blocker for each candidate. The sync skill already
   says "propose that isolated fix upstream when authorized" but with no list,

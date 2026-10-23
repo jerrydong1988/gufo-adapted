@@ -486,6 +486,107 @@ changes. PR #699 remains reverted and its forbidden identifiers stay absent.
   PR completes. This platform refactor does not refresh numerical sweeps or
   inference benchmarks; the previous timing limits remain visible.
 
+## October 23, 2026: PR #711
+
+Status: **imported; Windows CPU gate, formatting, documentation and a live HIP
+smoke passed on `d87a8ae14a`**. Linux/repository and hosted checks remain
+pending. The layer is additive: no production source changed, so no model,
+prefill or cache timing work is claimed or required. The following record-only
+commit does not change that production source.
+
+- Windows base: `5606d1c67503f28e3a69620ca9be825561efc059` (PR #81 merged).
+- Previous official ancestor: `8a79230617490ff374b38edc002a8e68d241cf68`.
+- Imported official head: `7c8196527ad02ac4c585a32b1131fab7e70509d0`
+  (upstream's squash merge of #711; its only parent is the previous ancestor).
+- Integration merge: `d87a8ae14afd321cadac18b961356842061f83dc`.
+- Scope: #711 only. The later upstream commits (for example #713 shutdown
+  signals, #729 publish/prefault, #734 and #738 mapped files, #739 draft
+  selection, #747 Nix caching) are outside this layer.
+- Evidence ([evidence archive](#evidence-archive)): `sync-711-2026-10-23/`.
+
+| PR | Upstream change | Merge SHA |
+| --- | --- | --- |
+| [#711](https://github.com/gufo-org/gufo/pull/711) | feat(platform): add the net leaf | `7c8196527ad02ac4c585a32b1131fab7e70509d0` |
+
+### Merge review
+
+Upstream adds the `src/core/platform/net.{hpp,cpp}` leaf and rewrites the
+socket call sites in `http_server.cpp`, `websocket.cpp` and two CLI tests to
+use it. This fork already has its own socket layer,
+[`socket.hpp`](../src/core/platform/socket.hpp), so the merge decides which
+layer owns the call sites: the fork's `gufo::platform` wrappers stay, and the
+upstream leaf is imported byte-identical and left unreferenced for a later
+slice.
+
+- 45 conflict hunks across four files
+  (`http_server.cpp` 19, `http_server_test.cpp` 18,
+  `audio_websocket_test.cpp` 5, `websocket.cpp` 3), all of them the same
+  mechanical choice. Each discarded hunk was reviewed individually; they
+  contain only layer swaps:
+  `MSG_NOSIGNAL` send to `net::SendNoSignal`, `::poll` to `net::PollSocket`,
+  listener `fcntl(O_NONBLOCK)` to `net::SetNonBlocking`, the 120 s `timeval`
+  pair to `net::SetSocketTimeouts`, `TCP_NODELAY` and the 5 s send timeout to
+  `net::SetNoDelay`/`net::SetSendTimeout`, `::close` to `net::CloseSocket`,
+  and the tests' `int fd`/`fd >= 0`/`net::` helper swaps.
+- Reasons for keeping the fork's layer: upstream's send, receive and poll
+  wrappers do not map WinSock errors to `errno`, so the existing
+  `EINTR`/`EAGAIN` checks would stop working on Windows; it has no
+  cancel-on-shutdown counterparts to `ShutdownSocket`, `StopSocketReads` and
+  `CloseConnection`, which back the validated Ctrl+C/Ctrl+Break and orderly
+  close contracts; and its call sites keep handles in `int`, which narrows a
+  pointer-sized `SOCKET`. `net::Socket` itself is already width-correct, so
+  these are call-site gaps rather than a reason to reject the leaf.
+- `websocket.cpp` keeps its `<netinet/in.h>`, `<netinet/tcp.h>` and
+  `<sys/socket.h>` includes: upstream deleted them because `net.hpp` supplies
+  those declarations, but the retained fork wrappers need them and this
+  translation unit does not include `net.hpp`. The Windows shims behind them
+  are unchanged.
+- `audio_websocket_test.cpp` and `http_server_test.cpp` had one pure-deletion
+  hunk each (upstream's `namespace net = gufo::net;` alias). Both files are
+  marker-enforced in [`shared-edits.json`](../tools/windows/shared-edits.json),
+  and a pure deletion cannot carry a marker, so each alias became
+  `// WINDOWS: keep native Winsock handles; gufo::platform wrappers replace
+  net::.` Those two comment lines are the entire source delta of this sync
+  against the Windows base.
+- Clean merges reviewed: the root `CMakeLists.txt` source-list line adds
+  `src/core/platform/net.cpp` to `gufo_core`; the fork's Windows overrides in
+  `cmake/Windows.cmake` are untouched. `net.hpp` and `net.cpp` are
+  byte-identical to official (blobs `81679b39`, `588a2b20`) and now compile on
+  Windows in both presets, but no fork code references them yet.
+- Follow-up: adopt the upstream leaf, or the parts of it that fit, once it
+  covers native-width call-site handles, `errno` mapping and
+  cancel-on-shutdown; see the
+  [upstream friction TODO](todo.md#1-upstream-portable-fixes-to-shrink-the-48-file-src-delta-defer-this-for-now).
+
+### Compatibility and validation
+
+| Contract | Outcome |
+| --- | --- |
+| Cached concurrent n-gram reads | Reviewed/unchanged: no engine, loader, n-gram or I/O path is edited; PR #699 stays reverted and its identifiers are absent. |
+| WDDM admission budgets | Reviewed/unchanged: no device-memory or budget code; the live HIP server starts and stops normally. |
+| Pinned memory and transfer lifetime | Reviewed/unchanged: no pinning or transfer code; PR #688 stays deferred and its identifiers are absent. |
+| Sockets and shutdown | Validated: production paths keep the fork's layer. Native CPU gate passes `http_server_test`, `audio_websocket_test` and `win32_server_shutdown_test` (real Ctrl+C/Ctrl+Break during idle, active and partial requests), and the live HIP server exits cleanly on Ctrl+Break. |
+| Filesystem identity, privacy and failures | Reviewed/unchanged: native filesystem and store checks pass unchanged. |
+| GPU queue policy | Reviewed/unchanged: startup-policy checks pass and native HIP serving starts. |
+
+- Native Windows CPU configure/build (176 targets) and **16/16 CTests pass** in
+  18.3 s.
+- Native HIP `gufo` builds at `d87a8ae14afd` (274 targets, TheRock 10.0.0); its
+  SHA-256 is
+  `64dfde137bb49232a519e13586f372fd9391ee141461df3e0005e7e59c50f891`.
+- Live HIP smoke: ready in 26.703 s, `/health` ok, one buffered and one
+  streamed completion (26 SSE events, terminal `data: [DONE]`), Ctrl+Break
+  shutdown in 1.264 s with exit code 0.
+- Formatting checks all 624 C++ files with clang-format 21.1.8. Documentation
+  (101 files, 654 links), inventory, maintained-difference and
+  reverted-identifier checks pass; `git diff --check` is clean and official
+  ancestry is preserved.
+- Pending: the Linux/repository and hosted Windows gates, which need a pushed
+  candidate and draft PR. The leaf's POSIX branches were not built locally, so
+  their coverage rests on upstream CI. No numerical sweep or inference
+  benchmark is refreshed: this layer changes no model, prefill or cache
+  behavior, so the previous timing limits stay as recorded.
+
 ## October 23, 2026: PR #350 qualification follow-up
 
 Status: **no confirmed YaRN regression after matched controls; timing remains inconclusive**.
