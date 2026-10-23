@@ -153,6 +153,28 @@ These focused Windows controls do not replace the Linux tables in
 
 ## Quality
 
+### Over-RAM checkpoint reclaim (October 23, 2026)
+
+PR #677 frees retained RAM checkpoints before staging a checkpoint that is too
+large for the RAM cache, so it can still be written to disk. Native check with
+the Q4_K_XL/shared-Q8 MTP artifacts, context 65,536, one session and a 256 MiB
+RAM cache, using upstream's `publication_wait.py` 55,111-token workload:
+
+| Binary | Deep capture | Retry reuse | Retry prefill | Retry TTFT |
+| --- | --- | --- | --- | ---: |
+| Base `c8e66f75` | refused (`byte_capacity`) | 52-token RAM checkpoint | 55,073 | 33.0 s |
+| #677 `5929ab89` | reclaims RAM, publishes 1.65 GB | 55,106-token disk restore | 19 | 1.50 s |
+
+At a 1 GiB cache both binaries publish and restore. Matched alternating pairs
+are within 5% for restore and TTFT. All eight base/head runs return identical
+responses and draft counts for every request. Retry and cold-control reasoning
+texts differ in all of them, including base runs that never restore from disk;
+the final answer matches. The bounded RAM and disk startup fixtures also pass.
+
+Details are in the [sync log](../../WINDOWS-UPSTREAM-SYNC.md#october-23-2026-pr-677);
+evidence is in `build/sync-677-2026-10-23/`. This is a cache correctness and
+latency check, not a refreshed numerical or performance qualification.
+
 ### OS info adoption (October 23, 2026)
 
 PR #709 changes the host-memory query to the shared native OS leaf, using the

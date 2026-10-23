@@ -258,6 +258,94 @@ Reply with exactly the word ACK."},
 }
 ```
 
+## October 23, 2026: PR #677
+
+Status: **local Windows checks passed; hosted qualification pending on the
+sync PR**.
+
+- Windows base: `041772cbbca43953b5ba6b5322a18118ffe5bdba` (#78 merged).
+- Previous official ancestor: `b0eb5d476d07b659fb0d6a448b56f66d5420a113`.
+- Imported official head: `8a79230617490ff374b38edc002a8e68d241cf68`.
+- Integration merge: `07edb498148c9db65213120aa9a967122cff0536`.
+- Scope: #677 and its predecessor, the official 0.21.0 release commit
+  `7110c795` (changelog, `version.txt` and release manifest, imported unchanged).
+  #711 and later commits are outside this layer.
+- Evidence: `build/sync-677-2026-10-23/` in the task worktree.
+
+| PR | Upstream change | Merge SHA |
+| --- | --- | --- |
+| [#677](https://github.com/gufo-org/gufo/pull/677) | fix(cache): free RAM before writing oversized checkpoints to disk | `8a79230617490ff374b38edc002a8e68d241cf68` |
+
+### Merge review
+
+One conflict in `ComponentTextCache::Capture()`. Upstream's new over-RAM
+branch compares against `cache.budget`, which exists only with the deferred
+[#688 pinned budget](#pr-688-windows-dflash2-continuation-latency). The
+resolution keeps #677's block, including the `refused`/`failed` logging and the
+rethrow, and keeps the fork's `cache.ledger.Limits().ram_bytes` limit, as the
+neighbouring snapshot reservation and planned-capture checks already do. No
+#688 identifier returns.
+
+Clean merges reviewed: deferred, largest-first staging allocation in
+`CaptureDurable` with reclamation that protects the source checkpoint and this
+turn's edit boundaries; the retention victim guard; the fake adapter's
+`rows_per_chunk`; and the new retention and component tests. The new component
+test's `/tmp` `mkdtemp` template already resolves through the Windows shim. The
+functional README keeps the Windows and #699 paragraphs and adds the reclaim
+case. The two inventory review items (#688 and #699 shared files) are covered
+above; neither reintroduces reverted code.
+
+### Compatibility and validation
+
+| Contract | Outcome |
+| --- | --- |
+| Cached concurrent n-gram reads | Reviewed/unchanged: no model I/O or n-gram change. |
+| WDDM admission budgets | Reviewed/unchanged: device budgets are untouched. The over-RAM path is bounded by the host RAM ledger, verified at a 256 MiB cache below. |
+| Pinned memory and transfer lifetime | Validated: over-RAM capture borrows live rows and stages private state; a 1.6 GB checkpoint publishes and restores with identical output across base/head. |
+| Sockets and shutdown | Native CPU checks pass; every live server stopped cleanly. |
+| Filesystem identity, privacy and failures | Validated: Windows NTFS rebuildable store (`disk_cache_platform platform=windows`) publishes, restores and restarts; native CPU store checks pass. |
+| GPU queue policy | Reviewed/unchanged. |
+
+- Native Windows CPU build and **16/16 CTests pass**, including
+  `cache_retention_test` with the new protected-source case.
+- `component_text_cache_test` still stops at the known, pre-existing
+  `OrphansLeaveBeforeCheckpoints` DACL assertion (#688 entry) before #677's
+  cases. An ignored harness compiled the unchanged upstream test with only
+  `OverRamCaptureStagesPrivateStateUnderPressure(false/true)`; both pass.
+- HIP `gufo` builds at `07edb498`; SHA-256
+  `5929ab89ac4c59193b7861de93b56d49581eb5b4af58e87ea59cc9c8abced89b`.
+  Base is the #78 production binary `c8e66f75...`.
+- Native form of upstream's `publication_wait.py --case reclaim` (the upstream
+  runner needs the Linux `LD_PRELOAD` disk gate, so it waits for the real
+  publication instead): Flash-Next Q4_K_XL/shared-Q8 MTP, context 65,536, one
+  session, 256 MiB RAM cache, 55,111-token deep prompt.
+  - Base reproduces the bug: the deep capture is refused
+    (`reason=byte_capacity`), nothing over RAM publishes and the retry
+    re-prefills 55,073 tokens (TTFT 33.0 s).
+  - Head reclaims a retained RAM checkpoint (`action=2 reason=1`), publishes
+    the 55,106-token, 1,646,239,144-byte checkpoint and restores it from disk
+    with 19 prefill tokens (TTFT 1.50 s). No `capture_failed`.
+- At a 1 GiB cache (no reclaim needed) base and head both publish and restore.
+  The first head/base pair differed by +166 ms in `cache_restore_ms` only;
+  two further alternating pairs measured +0.8%/+2.7% restore and +0.9%/+3.0%
+  TTFT, within the 5% limit. Restore timing drifts upward across the session
+  for both binaries.
+- Output: seed, deep, retry and cold responses and their draft counts are
+  identical across all eight base/head runs. The retry's reasoning text differs
+  from the cold control's in every run, including base retries that never touch
+  disk; the final answer matches. This pre-existing prefill-split difference is
+  why the upstream runner's exact retry/cold assertion is not a Windows gate here.
+- Bounded MTP `cache_startup.py --case ram` and `--case disk` pass on head:
+  2,294-token cold prompts, zero-prefill retries and a 7-token-prefill disk
+  restart restore, with matching output and 19/16 drafts each. These runs set
+  `PYTHONUTF8=1` because upstream harness provenance reads non-ASCII test files
+  with the locale codec.
+- Formatting checks 622 C++ files. Inventory with `-Candidate HEAD` and the
+  maintained-difference guard pass; #688/#699 identifiers stay absent.
+- Pending: upstream `publication_wait.py --case reclaim` itself (Linux-only
+  fault library), Linux/hosted gates, and Qwen 27B AR/DFlash2 reclaim. No
+  full model sweep or speedup claim.
+
 ## October 23, 2026: PR #688, pinned capture deferred
 
 - Windows base: `d812ebab17f604684fef3513eb2d31560577d669` (#77 merged).
