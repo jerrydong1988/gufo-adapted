@@ -13,7 +13,7 @@ extern "C" hipError_t __wrap_hipMemcpyAsync(void*, const void*, std::size_t,
                                             hipMemcpyKind, hipStream_t);
 
 extern "C" {
-Copy __imp_hipMemcpyAsync = __wrap_hipMemcpyAsync;
+extern Copy __imp_hipMemcpyAsync;
 
 hipError_t __real_hipMemcpyAsync(void* destination, const void* source,
                                  std::size_t bytes, hipMemcpyKind kind,
@@ -30,3 +30,19 @@ hipError_t __real_hipMemcpyAsync(void* destination, const void* source,
   return real(destination, source, bytes, kind, stream);
 }
 }
+
+namespace {
+struct InstallImportHook {
+  InstallImportHook() {
+    DWORD previous{};
+    if (!VirtualProtect(&__imp_hipMemcpyAsync, sizeof(Copy), PAGE_READWRITE,
+                        &previous))
+      std::abort();
+    __imp_hipMemcpyAsync = __wrap_hipMemcpyAsync;
+    DWORD ignored{};
+    if (!VirtualProtect(&__imp_hipMemcpyAsync, sizeof(Copy), previous,
+                        &ignored))
+      std::abort();
+  }
+} install;
+}  // namespace
