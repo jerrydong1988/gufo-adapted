@@ -57,9 +57,14 @@ Record imported PRs, revision identities and outcomes in the
   Regression: [`win32_pinned_transfer_test`](../tests/platform/win32_pinned_transfer_test.cpp)
   checks registered backing mappings, coherent staging flags, accounting,
   ownership, concurrency, bound execution-stream lifetime and real H2D/D2H copies.
+  The upstream `qwen_dflash_upload_lifetime_test` also checks delayed upload
+  failure, source lifetime and recovery through a Windows-only
+  [HIP import hook](../tests/platform/win32_dflash_upload_fault.cpp).
+  [PR #688 pinned capture](WINDOWS-UPSTREAM-SYNC.md#pr-688-windows-dflash2-continuation-latency)
+  remains deferred; keep its independent upload-failure draining fix.
   For snapshot changes, also run the AR/MTP cross-slot round-trip
   [continuation probe](WINDOWS.md#windows-pinned-backing-and-transfers).
-  Requires Windows HIP hardware; HIP fault injection and physical memory
+  Requires Windows HIP hardware; broader HIP fault injection and physical memory
   pressure remain unqualified.
 
 - [ ] **Sockets and shutdown.** Preserve native-width Winsock handles, errno

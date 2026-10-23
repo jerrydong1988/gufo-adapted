@@ -92,6 +92,13 @@ cmake_language(DEFER CALL gufo_windows_device_memory)
 # The upstream gufo-server symlink install step fails harmlessly here
 # (execute_process ignores the exit status); install a copy instead.
 function(gufo_windows_overrides)
+  if (TARGET qwen_dflash_upload_lifetime_test)
+    # WINDOWS: Run upstream's upload-failure fixture without ELF --wrap.
+    set_property(TARGET qwen_dflash_upload_lifetime_test PROPERTY LINK_OPTIONS
+      "LINKER:/STACK:8388608")
+    target_sources(qwen_dflash_upload_lifetime_test PRIVATE
+      ${PROJECT_SOURCE_DIR}/tests/platform/win32_dflash_upload_fault.cpp)
+  endif()
   if (TARGET cache_disk_faults)
     set_target_properties(cache_disk_faults PROPERTIES EXCLUDE_FROM_ALL TRUE)
   endif()

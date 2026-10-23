@@ -41,6 +41,60 @@ regression.
 these entries for the sync tools: PR, merge/revert SHAs, identifiers that must
 stay absent while reverted, and reintroduction checks. Update both together.
 
+### PR #688: Windows DFlash2 continuation latency
+
+**Bounded pinned prompt capture is deferred on Windows.** Official
+[#688](https://github.com/gufo-org/gufo/pull/688),
+`b0eb5d476d07b659fb0d6a448b56f66d5420a113`, is an ancestor through
+merge `225ec080`; explicit revert `432163e9` removes the optimization.
+Commit `77a58de7` separately retains only its upload-failure cleanup and
+unchanged upstream lifetime fixture. Successful injections keep the existing
+stream wait; failed injections now drain outstanding readers before returning.
+
+Two candidate runs (`792150d6` binary SHA-256 prefix) and three unchanged
+baseline runs (`b2df4482`) use the same executable path, all 143 runtime files,
+Qwen 27B Q4_K_XL/official Q4_K_M DFlash2/projector, 32K context, two sessions
+and effective 4 GiB RAM caches with equal staging/disk capacities. In the
+first `long-context` suite, before the later divergent cancellation histories,
+all outputs, prompt/cache work and sampled replay drafts match: 12,454 prompt
+tokens reused in full, seven completions, 11 proposed/five accepted drafts.
+
+| Matched sampled replay phase | Baseline range (ms) | Pinned-capture candidate range (ms) |
+| --- | ---: | ---: |
+| Client wall | 351.75-358.76 | 405.42-419.80 |
+| Cache restore | 15.27-16.61 | 20.77-21.44 |
+| Server TTFT | 19.40-21.70 | 26.30-26.70 |
+
+The unchanged upstream timing qualification finds **nine failed, 73 passed and
+42 inconclusive cells** for this entire first suite at the existing 5% and
+3 ms limits. The scoped evidence copies every first-suite request byte for
+byte, verifies settings/budgets and retains source hashes; it makes no claim
+about later histories. The full comparisons and their failures remain intact.
+No inference workaround or timing-margin change is retained. Attribution is
+to the tested #688 combination; the complete runtime cause is not established.
+
+The full DFlash2 comparison also fails on an image continuation after different
+cancellation frontiers (273 versus 278 cached tokens) change seeded output.
+Both builds replay exactly within themselves. Explicit matched-frontier image
+probes produce identical output/work across builds and reproduce both original
+output hashes on baseline, so this is not evidence of new transfer corruption.
+An unchanged baseline also reproduces the legacy-tool seven-token re-prefill
+variation. Neither observation is relabelled as a full comparison pass.
+
+A delayed-copy probe confirms Windows pageable D2H copies already block while
+pinned copies return asynchronously. Omitting the upstream waits would therefore
+be speculative; no such patch was made. Physical-memory pressure, other HIP
+failures and a full performance qualification remain open.
+
+Evidence: `build/sync-688-2026-10-23/`, especially
+`long-context-qualification.json`, `qualify-long-context.py`, original/repeat
+functional reports, `fixed-image-frontier/` and `copy-semantics.log`.
+Reintroduction must preserve upload draining, pass affected numerical and
+cancel/image/cache/batch checks, verify shared-cache Flash-Next AR/MTP behavior,
+and clear matched per-request timing gates with unchanged-base controls.
+Also run varied 10-16K-token first requests with reuse on/off and pp2048/tg128.
+The revert remains effective in future merges until deliberately qualified.
+
 ### PR #699: Windows first-request MTP decode regression
 
 **Avoid reapplying #699 unchanged on Windows.** Its code is reverted by
@@ -204,9 +258,75 @@ Reply with exactly the word ACK."},
 }
 ```
 
+## October 23, 2026: PR #688, pinned capture deferred
+
+- Windows base: `d812ebab17f604684fef3513eb2d31560577d669` (#77 merged).
+- Previous official ancestor: `3aa068b419e6272482298c1c6daccafb122764fa`.
+- Selected official head: `b0eb5d476d07b659fb0d6a448b56f66d5420a113` (#688 only).
+- Fetched official/main: `de43b8a047735fb296a5d4f1218f1f628cbff5ac`; later changes
+  are outside this layer. No release/version changes.
+- Conflict-free integration merge: `225ec080`; explicit optimization revert:
+  `432163e9`; isolated upload-failure cleanup retained by `77a58de7`.
+- [Fork PR #78](https://github.com/thomas9120/gufo-windows/pull/78) preserves
+  ancestry. The [deferral record](#pr-688-windows-dflash2-continuation-latency)
+  and machine-readable guard prevent automatic reintroduction. #699 stays reverted.
+
+The final production difference from the Windows base is only the DFlash2
+context-upload scope guard. Its unchanged upstream test delays a host upload,
+injects a recoverable device-copy error, overwrites caller data immediately on
+return, checks the uploaded bytes and verifies recovery, for pageable and pinned
+sources. A Windows-only test-process HIP import hook replaces ELF linker wrapping;
+it is absent from production binaries. Linux keeps the upstream fixture and hook.
+
+All four full-import candidate profiles individually pass `long-context`,
+text/thinking/tool/image cancellation, exact RAM replay and disk restart/spacing;
+actual drafts are observed in DFlash2 and MTP. These correctness results do not
+clear the failed matched DFlash2 timing/continuation comparisons. Flash-Next
+AR/MTP match baseline output/work but their timing remains inconclusive.
+The full-import CPU 17/17, numerical prefill, native cancel/resume, WDDM,
+pinned buffer/transfers and Flash cross-slot probes pass. Those results refer
+to the rejected optimization; final-subset checks are recorded below.
+
+The extra broad component-cache fixture fails at its orphan assertion because
+`std::ofstream` creates an unprotected DACL; existing Windows privacy checks
+exclude that file from deletion. Original failure, ACL and source evidence are
+retained. Upstream pinned-budget assertions passed independently, but their
+temporary native adapter is removed with the optimization.
+
+Final-subset validation, built clean at `852e2455` with TheRock 10.0.0/Clang
+23.0.0, MSVC 14.51.36231 and SDK 10.0.26100.0:
+
+- Native CPU build and **16/16 CTests pass**; HIP executable and affected test
+  targets build. The temporary pinned-budget target is removed with the
+  optimization, so its earlier 17-test run is not the final gate.
+- Upload-lifetime fixture passes for pageable and pinned sources: no upload
+  remains pending at failed return, original source bytes are preserved and
+  subsequent injection recovers.
+- Numerical prefill/captured-row checks and exact AR/DFlash2 native cancelled
+  prefill resume pass. The latter retains the same eight-token frontier.
+- Bounded Qwen DFlash2 HTTP RAM smoke passes at context 8192, one session and
+  effective 1 GiB cache: cold 2,294/2,294 prompt/prefill tokens; retry reuses all
+  2,294 with zero prefill. Both responses match and each proposes 18/accepts
+  17 drafts. Private server shutdown is clean.
+- Standard `gufo bench -p 2048 -n 128 -r 1 -v` AR/DFlash2 spots complete on
+  baseline and final subset, at one common executable path. All four output
+  hashes match (`095434b2...`); both DFlash2 arms report acceptance 0.439.
+  These single-repetition spots do not qualify a speedup or full performance.
+- Formatting checks 622 C++ files. Docs/dependencies, maintained-difference and
+  sync inventory checks pass; all four #688 and six #699 excluded identifiers
+  remain absent, and the recorded official head/reverts remain ancestors.
+
+Production executable SHA-256:
+`c8e66f755e4af759be88500ea253cc2a532f740c3989131a41c1b23d52861740`.
+Later documentation/guard records do not change that production source.
+Hosted qualification is pending on the final PR head. Evidence remains in
+`build/sync-688-2026-10-23/`; no full model sweep, speedup or full Windows
+performance qualification is claimed.
+
 ## October 23, 2026: PR #709
 
-Status: **local Windows checks pass; hosted qualification is pending on the sync PR**.
+Status: **local Windows checks and six executed hosted gates passed on
+`96a67c74`; merged by PR #77 as `d812ebab`**. Three GPU/workflow jobs were skipped.
 
 - Windows base: `4eb2aedd572be9b54125f4e49e8de04e216872a1` (PR #76 merged).
 - Previous official ancestor: `2947624b9e65f52d4b4fdd96297f39e040a0ed24`.
