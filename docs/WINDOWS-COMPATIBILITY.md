@@ -57,6 +57,14 @@ Record imported PRs, revision identities and outcomes in the
   Regression: [`win32_pinned_transfer_test`](../tests/platform/win32_pinned_transfer_test.cpp)
   checks registered backing mappings, coherent staging flags, accounting,
   ownership, concurrency, bound execution-stream lifetime and real H2D/D2H copies.
+  Qwen 27B DFlash2 prompt capture uses bounded host allocations charged to the
+  cache ledger. The native `qwen_prompt_hidden_buffer_test` checks capacity,
+  row preservation and sticky pageable fallback after refused admission.
+  [`win32_pinned_cache_budget_test`](../tests/platform/win32_pinned_cache_budget_test.cpp)
+  runs upstream's pinned/unpinned budget assertions, including the host ceiling
+  and disk staging. `qwen_dflash_upload_lifetime_test` uses the Windows-only
+  [HIP import hook](../tests/platform/win32_dflash_upload_fault.cpp) to run the
+  upstream delayed-upload/failure fixture without ELF linker wrapping.
   For snapshot changes, also run the AR/MTP cross-slot round-trip
   [continuation probe](WINDOWS.md#windows-pinned-backing-and-transfers).
   Requires Windows HIP hardware; HIP fault injection and physical memory
