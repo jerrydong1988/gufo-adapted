@@ -34,5 +34,23 @@ confirms that failed uploads drain before caller data is reused, for both
 pageable and pinned sources, and that context injection recovers.
 
 Evidence is retained under `build/sync-688-2026-10-23/` in the task checkout.
-Cold-prompt/benchmark and broader optimization qualification stopped after the
-deferral decision. No speedup or full Windows performance pass is claimed.
+Cold-prompt/benchmark and broader qualification of the rejected optimization
+stopped after the deferral decision. No speedup or full Windows performance
+pass is claimed.
+
+## Retained upload cleanup (October 23, 2026)
+
+The final subset is built clean at `852e2455`, production SHA-256
+`c8e66f755e4af759be88500ea253cc2a532f740c3989131a41c1b23d52861740`.
+Its only production change from the merged #77 base is the upload scope guard;
+successful calls keep the previous wait. CPU 16/16, native upload failure and
+recovery, numerical prefill/captured rows and exact AR/DFlash2 cancelled-prefill
+resume pass. HTTP RAM replay at 8192 context/one slot/1 GiB reuses all 2,294
+prompt tokens without prefill; both cold/retry outputs match and each proposes
+18/accepts 17 drafts. The test-owned server shuts down cleanly.
+
+Standard pp2048/tg128 spots complete on baseline and final subset in AR and
+DFlash2, with one common executable path and identical output hashes in all
+four runs. DFlash2 acceptance is 0.439 in both arms. Raw rates and complete
+commands remain in `bench-*.log` and `bench-jobs.json`; single-repetition spots
+do not establish a speedup or complete performance qualification.

@@ -293,8 +293,33 @@ exclude that file from deletion. Original failure, ACL and source evidence are
 retained. Upstream pinned-budget assertions passed independently, but their
 temporary native adapter is removed with the optimization.
 
-Final-subset CPU/HIP builds, upload lifetime, focused live checks, repository
-guards and hosted qualification are pending. Evidence remains in
+Final-subset validation, built clean at `852e2455` with TheRock 10.0.0/Clang
+23.0.0, MSVC 14.51.36231 and SDK 10.0.26100.0:
+
+- Native CPU build and **16/16 CTests pass**; HIP executable and affected test
+  targets build. The temporary pinned-budget target is removed with the
+  optimization, so its earlier 17-test run is not the final gate.
+- Upload-lifetime fixture passes for pageable and pinned sources: no upload
+  remains pending at failed return, original source bytes are preserved and
+  subsequent injection recovers.
+- Numerical prefill/captured-row checks and exact AR/DFlash2 native cancelled
+  prefill resume pass. The latter retains the same eight-token frontier.
+- Bounded Qwen DFlash2 HTTP RAM smoke passes at context 8192, one session and
+  effective 1 GiB cache: cold 2,294/2,294 prompt/prefill tokens; retry reuses all
+  2,294 with zero prefill. Both responses match and each proposes 18/accepts
+  17 drafts. Private server shutdown is clean.
+- Standard `gufo bench -p 2048 -n 128 -r 1 -v` AR/DFlash2 spots complete on
+  baseline and final subset, at one common executable path. All four output
+  hashes match (`095434b2...`); both DFlash2 arms report acceptance 0.439.
+  These single-repetition spots do not qualify a speedup or full performance.
+- Formatting checks 622 C++ files. Docs/dependencies, maintained-difference and
+  sync inventory checks pass; all four #688 and six #699 excluded identifiers
+  remain absent, and the recorded official head/reverts remain ancestors.
+
+Production executable SHA-256:
+`c8e66f755e4af759be88500ea253cc2a532f740c3989131a41c1b23d52861740`.
+Later documentation/guard records do not change that production source.
+Hosted qualification is pending on the final PR head. Evidence remains in
 `build/sync-688-2026-10-23/`; no full model sweep, speedup or full Windows
 performance qualification is claimed.
 

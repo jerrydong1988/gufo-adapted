@@ -8,7 +8,7 @@
     "CMakeLists.txt": { "reason": "Platform check, Windows.cmake include, gufo-server copy and optional roctx; other Windows changes are deferred overrides in cmake/Windows.cmake." },
     "CMakePresets.json": { "reason": "windows-cpu and windows-gpu presets." },
     "README.md": { "reason": "Fork description." },
-    "docs/KV-CACHE.md": { "reason": "Snapshot byte counter semantics." },
+    "docs/KV-CACHE.md": { "reason": "Snapshot byte counter semantics and deferred pinned capture." },
     "docs/SERVER.md": { "reason": "Live prefill metrics." },
     "src/cache/disk.cpp": { "reason": "Private NTFS disk-store ownership." },
     "src/cache/disk.hpp": { "reason": "Private NTFS disk-store ownership." },
