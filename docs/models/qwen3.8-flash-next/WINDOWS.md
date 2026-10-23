@@ -51,7 +51,9 @@ Clamped and instrumented runs do not enter this assessment. Original failed
 results remain available alongside the controls. No speedup or full Windows
 performance pass is claimed, and no inference workaround is retained.
 
-Evidence: `build/sync-350-2026-10-23/`, especially `same-path-arms.json`,
+Evidence (the
+[evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive)):
+`sync-350-2026-10-23/`, especially `same-path-arms.json`,
 `same-path-comparison.json`, `verified-builds.py` and
 `verified-builds-comparison.json`. The next upstream layer may proceed while
 these timing limits remain visible.
@@ -64,7 +66,8 @@ TheRock 10.0.0, the same Q4_K_XL/shared-Q8 artifacts, 32K context, two sessions,
 send the varied 11,036-token prompt with reuse enabled and then disabled.
 Every response is `ACK`, every request reports zero reuse, and all servers
 stop cleanly. Complete responses, identities, DLL hashes and per-request
-measurements are retained in `build/sync-350-2026-10-22/cold-control-1/`.
+measurements are retained in `sync-350-2026-10-22/cold-control-1/` in
+the [evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
 
 Prefill, adjusted wall/queue/TTFT and AR decode remain within the existing
 paired gates. Snapshot cells and first MTP decode have noisy observations;
@@ -172,8 +175,9 @@ texts differ in all of them, including base runs that never restore from disk;
 the final answer matches. The bounded RAM and disk startup fixtures also pass.
 
 Details are in the [sync log](../../WINDOWS-UPSTREAM-SYNC.md#october-23-2026-pr-677);
-evidence is in `build/sync-677-2026-10-23/`. This is a cache correctness and
-latency check, not a refreshed numerical or performance qualification.
+evidence is in `sync-677-2026-10-23/` in
+the [evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
+This is a cache correctness and latency check, not a refreshed numerical or performance qualification.
 
 ### OS info adoption (October 23, 2026)
 
@@ -189,7 +193,8 @@ Each request proposes 19 and accepts 16 drafts. RAM-only startup leaves the
 durable model-identity cache empty, and the server stops cleanly.
 
 Commands, binary identity, responses and logs are in
-`build/sync-709-2026-10-23/ram-startup-job.json` and `ram-startup-mtp/`.
+`sync-709-2026-10-23/ram-startup-job.json` and `ram-startup-mtp/` in
+the [evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
 This is a platform-budget smoke check; it does not refresh the existing
 numerical or performance qualification.
 
@@ -226,8 +231,9 @@ numerical or performance qualification.
   warm image-prefix work and cannot qualify the original profile. All failed
   comparisons remain retained; the October 23 follow-up investigates them.
 
-Evidence is retained under `build/sync-350-2026-10-22/`, including earlier
-failed observations. Correctness scope is recorded above; the full timing
+Evidence is retained under `sync-350-2026-10-22/` in
+the [evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive),
+including earlier failed observations. Correctness scope is recorded above; the full timing
 matrix remains unqualified. See the sync follow-up for current attribution
 controls and their effective cache budgets.
 
