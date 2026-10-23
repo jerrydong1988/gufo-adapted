@@ -518,7 +518,8 @@ Local NTFS, Radeon 8060S (`gfx1151`), driver `32.0.32015.7029`, TheRock 10.0.0,
 AMD Clang 23, MSVC 14.51.36231 and Windows SDK 10.0.26100.0. The release candidate
 and an unchanged `git archive` of base `2dd7e5f7` use matching compiler/build
 settings and pinned dependencies. Source and binary hashes, commands, individual
-request measurements and every timing control remain in `build/qualification`.
+request measurements and every timing control are archived under
+`pr65-disk-cache/qualification/` in the [evidence archive](WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
 
 - All **16 bounded native CPU checks pass**, including the new store test's 36
   publication subprocess scenarios (18 abrupt terminations), 24 injected
@@ -567,8 +568,8 @@ Live qualification here covers Flash-Next AR/MTP on local NTFS. Qwen27B,
 other filesystems, physical power-loss behavior, full-model F32 quality and
 Linux build/GPU checks remain outside this local validation. The initial
 relative-executable test launch failed before engine startup; its failed report
-is retained under `build/qualification/startup-ar`, and the corrected absolute-path
-run is `startup-ar-2`.
+is archived as `pr65-disk-cache/qualification/startup-ar`, and the corrected
+absolute-path run is `startup-ar-2`.
 
 ## Initial native HIP live inference
 

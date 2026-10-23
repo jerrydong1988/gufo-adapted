@@ -109,9 +109,11 @@ tests (`sampling_test`, `verification_sampling_test`, `prompt_lookup_test`,
 `session_test`) and replaces upstream's "Exact sampled decode" doc sections.
 Every upstream follow-up to #699 will conflict here.
 
-- [ ] When authorized, report the Windows/TheRock first-request MTP decode
+- [x] When authorized, report the Windows/TheRock first-request MTP decode
   regression upstream with the cold-prompt repro (§2) and the sync log's
-  measurements.
+  measurements. Reported as
+  [gufo-org/gufo#745](https://github.com/gufo-org/gufo/issues/745); official
+  #733 does not fix it.
 - [ ] Once a fix lands upstream, drop the revert on the next sync (gated by
   `known-regressions.json`, §3).
 
