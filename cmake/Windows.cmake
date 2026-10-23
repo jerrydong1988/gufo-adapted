@@ -100,15 +100,17 @@ function(gufo_windows_overrides)
       ${PROJECT_SOURCE_DIR}/src/cli/serve/continuation_disk_store.cpp
       ${PROJECT_SOURCE_DIR}/src/cli/serve/text_model_runner.cpp)
     target_compile_options(win32_pinned_cache_budget_test PRIVATE -UNDEBUG)
+    target_link_options(win32_pinned_cache_budget_test PRIVATE LINKER:/STACK:8388608)
     target_link_libraries(win32_pinned_cache_budget_test PRIVATE
-      gufo_cache_fake gufo_core gufo_logging)
+      gufo_cache_fake gufo_core gufo_logging gufo_posix_compat)
     add_test(NAME win32_pinned_cache_budget_test COMMAND win32_pinned_cache_budget_test)
     set_tests_properties(win32_pinned_cache_budget_test PROPERTIES
       LABELS "cpu;windows;cache" TIMEOUT 30)
   endif()
   if (TARGET qwen_dflash_upload_lifetime_test)
     # WINDOWS: The test-only import shim exercises the upstream ELF fixture.
-    set_property(TARGET qwen_dflash_upload_lifetime_test PROPERTY LINK_OPTIONS "")
+    set_property(TARGET qwen_dflash_upload_lifetime_test PROPERTY LINK_OPTIONS
+      "LINKER:/STACK:8388608")
     target_sources(qwen_dflash_upload_lifetime_test PRIVATE
       ${PROJECT_SOURCE_DIR}/tests/platform/win32_dflash_upload_fault.cpp)
   endif()
