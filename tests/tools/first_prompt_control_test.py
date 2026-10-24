@@ -24,17 +24,19 @@ control = load("first-prompt-control.py", "first_prompt_control")
 compare = load("compare-phases.py", "compare_phases")
 
 
-def request(name, prefill=6000.0, decode=50.0, completion=2, text="ACK", wait=0.0, total=None):
+def request(name, prefill=6000.0, decode=50.0, completion=2, text="ACK", wait=0.0, total=None,
+            snapshot=40.0, snapshot_bytes=1070551172, restore=0.0, restore_bytes=0):
     observed = {"name": name, "prompt_tokens": 11036, "cached_tokens": 0,
                 "completion_tokens": completion, "draft_tokens": 0, "draft_tokens_accepted": 0,
                 "text_sha256": text,
                 "phases": {"wall_ms": prefill + decode + 20 + wait, "queue_ms": 0.1 + wait,
                            "ttft_ms": prefill + 25 + wait, "prefill_ms": prefill,
-                           "decode_ms": decode, "cache_restore_ms": 0.0,
-                           "cache_snapshot_ms": 40.0, "max_inter_token_ms": decode}}
+                           "decode_ms": decode, "cache_restore_ms": restore,
+                           "cache_snapshot_ms": snapshot, "max_inter_token_ms": decode}}
+    usage = {"cache_snapshot_bytes": snapshot_bytes, "cache_restore_bytes": restore_bytes}
     if total is not None:
-        spill = {"global_spill": {"residual_wait_ms": total}}
-        observed["response"] = {"usage": {"gufo": {"component_cache": spill}}}
+        usage["component_cache"] = {"global_spill": {"residual_wait_ms": total}}
+    observed["response"] = {"usage": {"gufo": usage}}
     return observed
 
 
@@ -159,6 +161,54 @@ class CompareTest(unittest.TestCase):
         lone["mode"] = "mtp"
         with self.assertRaises(ValueError):
             run(base, arm("head", 0), lone)
+
+
+class MemcpyRepeatabilityTest(unittest.TestCase):
+    """Payload-bound copy phases are reported, not judged, inside their band."""
+
+    def test_snapshot_move_inside_repeatability_is_reported_not_gated(self):
+        # October 2026 #703 evidence: identical binaries differed by up to 53%.
+        result = run(arm("base", 0, snapshot=73.32), arm("head", 0, "new", snapshot=58.06),
+                     arm("head", 1, "new", snapshot=50.08), arm("base", 1, snapshot=61.14))
+        self.assertEqual(verdicts(result, "cache_snapshot_ms"), ["within noise"])
+        self.assertEqual(verdicts(result, "cache_snapshot_ms", "no-reuse"), ["within noise"])
+        self.assertEqual(result["status"], "passed")
+        self.assertTrue(any("cache_snapshot_ms" in note and "not qualified" in note
+                            for note in result["notes"]))
+        self.assertEqual(result["memcpy_repeatability"], compare.MEMCPY_REPEATABILITY)
+
+    def test_snapshot_move_beyond_repeatability_still_fails(self):
+        result = run(arm("base", 0, snapshot=40.0), arm("head", 0, "new", snapshot=80.0),
+                     arm("head", 1, "new", snapshot=82.0), arm("base", 1, snapshot=41.0))
+        self.assertEqual(verdicts(result, "cache_snapshot_ms"), ["slower"])
+        self.assertEqual(result["status"], "failed")
+
+    def test_snapshot_payload_change_is_a_work_difference(self):
+        result = run(arm("base", 0, snapshot=73.32),
+                     arm("head", 0, "new", snapshot=58.06, snapshot_bytes=544091652),
+                     arm("head", 1, "new", snapshot=50.08, snapshot_bytes=544091652),
+                     arm("base", 1, snapshot=61.14))
+        self.assertEqual(verdicts(result, "cache_snapshot_ms"), ["work differs"])
+        self.assertEqual(result["status"], "inconclusive")
+
+    def test_evidence_without_the_payload_is_not_softened(self):
+        result = run(arm("base", 0, snapshot=73.32, snapshot_bytes=None),
+                     arm("head", 0, "new", snapshot=58.06, snapshot_bytes=None),
+                     arm("head", 1, "new", snapshot=50.08, snapshot_bytes=None),
+                     arm("base", 1, snapshot=61.14, snapshot_bytes=None))
+        self.assertEqual(verdicts(result, "cache_snapshot_ms"), ["faster"])
+
+    def test_decode_keeps_the_strict_floor(self):
+        # The band covers copies only; decode is what this control exists to catch.
+        result = run(arm("base", 0, decode=57.96), arm("head", 0, "new", decode=54.61),
+                     arm("head", 1, "new", decode=53.42), arm("base", 1, decode=53.48))
+        self.assertEqual(verdicts(result, "decode_ms"), ["noisy"])
+        self.assertEqual(result["status"], "inconclusive")
+
+    def test_table_reports_payload_and_throughput(self):
+        result = run(arm("base", 0), arm("head", 0, "new"))
+        self.assertIn("(1.07 GB, ", compare.table(result))
+        self.assertIn("GB/s)", compare.table(result))
 
 
 CHILD = """

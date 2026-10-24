@@ -43,9 +43,12 @@ regresses; prefill is 0.6-1.9% faster and decode is unchanged.
 Two standard pp2048/tg128 spots per binary and mode give unchanged decode and
 slightly higher prefill: AR 1762.42/1745.10 -> 1762.92/1760.08 tok/s and
 28.24/28.12 -> 28.24/28.25 tok/s; MTP 1694.93/1702.09 -> 1704.90/1708.85 and
-37.69/37.73 -> 37.70/38.01 tok/s. The comparison status is `inconclusive`
-because four `cache_snapshot_ms` cells are noisy, as in the retained #703
-comparison; every observation is kept. These spots do not qualify a speedup.
+37.69/37.73 -> 37.70/38.01 tok/s. The comparison was `inconclusive`
+because four `cache_snapshot_ms` cells were noisy, as in the retained #703
+comparison; every observation is kept. Replaying that retained evidence with
+the memcpy repeatability band added to `compare-phases.py` on October 24 reports
+those four cells as `within noise` with their payloads and 12.4-18.4 GB/s
+throughput, and the run as `passed`. These spots do not qualify a speedup.
 
 All eight arms stop gracefully through the new upstream console handler.
 Evidence is in `sync-714-713-2026-10-24/` in the
