@@ -39,18 +39,36 @@ inline int PrefaultExceptionFilter(EXCEPTION_POINTERS* exception,
   return EXCEPTION_EXECUTE_HANDLER;
 }
 
+// WINDOWS: clang only keeps an SEH scope around calls that may throw, so a
+// __try holding bare loads never catches the fault (-fasync-exceptions would
+// change codegen everywhere). Touch pages through a volatile function pointer.
+inline std::uint8_t ReadMappedByte(const volatile std::uint8_t* address) {
+  return *address;
+}
+inline std::uint8_t (*volatile read_mapped_byte)(const volatile std::uint8_t*) =
+    ReadMappedByte;
+
 // Keep SEH in a helper with no C++ objects requiring stack unwinding. Faults
 // must be caught on the worker that touches the mapping, before joining it.
 inline DWORD TouchMappedPages(std::uintptr_t begin, std::size_t bytes,
                               std::size_t page_size) noexcept {
   DWORD error = ERROR_SUCCESS;
+#if defined(__HIP_DEVICE_COMPILE__)
+  // WINDOWS: HIP .hip files include this header; clang's gfx1151 device pass
+  // rejects SEH. This host-only helper is never emitted for the device.
+  static_cast<void>(begin);
+  static_cast<void>(bytes);
+  static_cast<void>(page_size);
+#else
   __try {
     const auto* touch = reinterpret_cast<volatile const std::uint8_t*>(begin);
+    const auto read = read_mapped_byte;
     for (std::size_t i = 0; i < bytes; i += page_size)
-      static_cast<void>(touch[i]);
+      static_cast<void>(read(touch + i));
   } __except (PrefaultExceptionFilter(GetExceptionInformation(), begin, bytes,
                                       &error)) {
   }
+#endif
   return error;
 }
 

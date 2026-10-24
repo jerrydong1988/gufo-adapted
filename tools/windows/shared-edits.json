@@ -36,6 +36,7 @@
     "src/core/gguf_identity.cpp": { "reason": "Platform cache directory." },
     "src/core/hip/host_allocations.cpp": { "reason": "Native host-memory accounting." },
     "src/core/json.hpp": { "reason": "MSVC ABI size_t constructor; upstream candidate." },
+    "src/core/platform/prefault.hpp": { "reason": "Keep SEH out of the HIP device pass; upstream candidate (PR 729).", "markers": true },
     "src/models/deepseek_v4_flash/kernels/rocm/detail/ds4_rocm_runtime.hip.hpp": { "reason": "Portability one-liner; upstream candidate." },
     "src/models/minimax_h3/media.cpp": { "reason": "Portability one-liner; upstream candidate." },
     "src/models/qwen/hip/model_loader.cpp": { "reason": "Windows device weight upload." },
