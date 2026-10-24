@@ -62,13 +62,13 @@ inline DWORD TouchMappedPages(std::uintptr_t begin, std::size_t bytes,
 #else
   __try {
     const auto* touch = reinterpret_cast<volatile const std::uint8_t*>(begin);
-    const auto read = read_mapped_byte;
+    const auto read = read_mapped_byte;  // WINDOWS: keep a call in the scope.
     for (std::size_t i = 0; i < bytes; i += page_size)
-      static_cast<void>(read(touch + i));
+      static_cast<void>(read(touch + i));  // WINDOWS: not a bare load.
   } __except (PrefaultExceptionFilter(GetExceptionInformation(), begin, bytes,
                                       &error)) {
   }
-#endif
+#endif  // WINDOWS: __HIP_DEVICE_COMPILE__
   return error;
 }
 
