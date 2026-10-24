@@ -324,18 +324,125 @@ Reply with exactly the word ACK."},
 }
 ```
 
+## October 24, 2026: PR #703
+
+Status: **imported as `4713d367` and merged into `windows-main` under the
+`f4384d51` merge while its first-prompt timing comparison was still
+`inconclusive`**. Correctness and expected work pass everywhere, and no gated
+phase is slower in every repeat. The unsettled cells are the memcpy-bound
+cache-snapshot phase and one MTP decode cell, which an unchanged-binary
+control reproduces at the same magnitude with no code difference, so no timing
+oracle pass is claimed for them. This entry records the merge after the fact.
+
+- Windows base: `1bd5de2e4a3ec30b1df1237587c16827a9bcc802` (PR #83 merged,
+  plus the DeepSeek V4.1 SSD streaming plan).
+- Previous official ancestor: `7c8196527ad02ac4c585a32b1131fab7e70509d0`
+  (official #711).
+- Imported official head: `1167a94475ad888534a99c9fb72401636cd9f7e7`.
+- Import commit: `4713d367422302902d846595a24ec7b91ce069b4`, a merge of
+  `1bd5de2e` and `1167a944`. It reaches `windows-main` through `f4384d51`
+  (PR #85), which was merged at the same minute; PR #84 itself is marked
+  merged. The first-parent chain therefore contains no dedicated #84 merge
+  commit, while both official parents remain ancestors of `windows-main`.
+- Scope: #703 only.
+  [#713](https://github.com/gufo-org/gufo/pull/713) and later commits are
+  outside this layer and follow in
+  [the #714/#713 entry](#october-24-2026-pr-714-and-713).
+- Evidence ([evidence archive](#evidence-archive)): `sync-703-2026-10-24/` and
+  `sync-noise-floor-2026-10-24/`.
+
+| PR | Upstream change | Merge SHA |
+| --- | --- | --- |
+| [#703](https://github.com/gufo-org/gufo/pull/703) | perf(qwen38-flash-next): price unseeded sampled MTP drafts at the decoding occupancy | `1167a94475ad888534a99c9fb72401636cd9f7e7` |
+
+### Merge review
+
+The import merges cleanly. Upstream changes `mtp_costs.hpp`, `mtp_policy.hpp`
+and `engine.cpp` costing code plus `mtp_sampling_test.cpp`; the fork keeps its
+#699 revert in `engine.cpp`, which is why that file still differs from
+official. Nothing Windows-specific is involved and no shared-edit file is
+touched.
+
+### Timing qualification
+
+Matched first-request control, two ABBA arm pairs per mode, varied 11,036-token
+prompt, fresh process per arm. Every arm loads the same model, returns `ACK`,
+reports zero reused tokens, does identical prompt/draft work, and stops
+gracefully with exit code 0. Base is `538a322e19ae` (`1bd5de2e`), candidate is
+`2bdbc626f201` (`4713d367`).
+
+| Mode/request | Base prefill (ms) | Candidate prefill (ms) | Base/candidate wall (ms) |
+| --- | --- | --- | --- |
+| AR reuse | 6466.72, 6252.23 | 6335.07, 6264.79 | 6603.32/6415.84 vs 6468.02/6378.43 |
+| AR no-reuse | 6111.55, 6107.36 | 6101.19, 6104.75 | 6188.45/6158.52 vs 6176.43/6173.04 |
+| MTP reuse | 6601.85, 6524.59 | 6494.09, 6487.25 | 6781.08/6693.97 vs 6650.95/6673.00 |
+| MTP no-reuse | 6326.67, 6336.19 | 6319.90, 6335.76 | 6396.71/6420.57 vs 6396.30/6409.01 |
+
+Prefill, TTFT, wall, queue and restore are `same` in every cell. The comparison
+returns `inconclusive` for four gated cells:
+
+| Mode/request | Phase | Base (ms) | Candidate (ms) | Verdict |
+| --- | --- | --- | --- | --- |
+| AR reuse | cache_snapshot_ms | 73.32, 61.14 | 58.06, 50.08 | faster |
+| AR no-reuse | cache_snapshot_ms | 41.68, 30.22 | 38.66, 44.57 | noisy |
+| MTP reuse | decode_ms | 57.96, 53.48 | 54.61, 53.42 | noisy |
+| MTP reuse | cache_snapshot_ms | 69.76, 79.92 | 66.21, 53.66 | faster |
+| MTP no-reuse | cache_snapshot_ms | 36.79, 47.13 | 39.25, 39.78 | noisy |
+
+`cache_snapshot_ms` is a ~0.54-1.10 GB device-to-host capture, not a scheduled
+phase, and `cache_snapshot_bytes` is byte-identical between the two binaries in
+every cell (1,070,551,172 and 544,091,652 for AR, 1,104,736,388 and 570,323,204
+for MTP), so the transfer does the same work. The implied throughput ranges
+from 12.1 to 21.4 GB/s across the sixteen arms, and the disk enqueue stays
+below 0.01 ms. The phase is pageable-copy bound while the pinned capture
+([#688](#pr-688-windows-dflash2-continuation-latency)) remains deferred.
+
+An unchanged-binary control settles the attribution: with `2bdbc626f201` on
+both sides and byte-identical DLL sets, `compare-phases.py` reports the same
+class of cells as noisy, with the same magnitude and no code difference.
+
+| Mode/request | Phase | Arm A (ms) | Arm B (ms) | Spread | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| AR reuse | cache_snapshot_ms | 82.96, 54.27 | 66.82, 55.57 | 53% | noisy |
+| AR no-reuse | cache_snapshot_ms | 33.61, 43.73 | 37.05, 42.28 | 30% | noisy |
+| MTP reuse | cache_snapshot_ms | 65.20, 54.87 | 68.75, 53.31 | 29% | noisy |
+| MTP no-reuse | decode_ms | 55.41, 51.58 | 52.28, 51.83 | 7% | noisy |
+
+The replay also flagged a different subset of the same jitter-prone cells than
+the matched run did, which is the signature of an instrument whose repeatability
+(29-53%) is wider than its 3 ms/5% floor rather than of a code change. Neither
+run produces a `slower` verdict in any repeat and neither has a correctness
+problem.
+
+### Live checks and limits
+
+- The comparison status is left as `inconclusive`. It is not relabelled, no
+  tolerance is widened and no averaging is applied, so the phase remains
+  unqualified. Merging on this evidence is a maintainer decision, recorded here
+  as such.
+- `cache_snapshot_ms` and `cache_restore_ms` cannot be resolved by this
+  workload on Windows while the snapshot copy is pageable. Do not treat a
+  single noisy cell there as a regression: reproduce it with an
+  unchanged-binary control, and read the byte count and the implied throughput
+  before reading the verdict.
+- The hosted gates qualified the #714/#713 layer that follows, not this one;
+  no hosted run covered `4713d367` by itself.
+- No full numerical sweep, quality benchmark or complete Windows performance
+  qualification was run for this layer.
+
 ## October 24, 2026: PR #714 and #713
 
-Status: **imported and locally qualified on `52dc136ff6aa`, and all six
-executed hosted gates passed on `563c0be4` (three functional jobs skipped);
-draft [PR #85](https://github.com/thomas9120/gufo-windows/pull/85) makes
-official ancestry visible and waits for a merge-commit integration**. #714
-touches the Flash-Next prefill indexer GEMM, so its live timing controls are
-part of this layer. #713 replaces the fork's local console handler with the
-upstream shutdown leaf.
+Status: **merged as `f4384d51` by
+[PR #85](https://github.com/thomas9120/gufo-windows/pull/85)**. All six
+executed hosted gates passed on `563c0be4` (three functional jobs skipped), and
+the merged tree is identical to the tested candidate `d82b6cde`. #714 touches
+the Flash-Next prefill indexer GEMM, so its live timing controls are part of
+this layer. #713 replaces the fork's local console handler with the upstream
+shutdown leaf.
 
-- Windows base: `4713d367422302902d846595a24ec7b91ce069b4` (official #703
-  imported by merge `4713d367`; that import has no separate log entry).
+- Windows base: `4713d367422302902d846595a24ec7b91ce069b4` (official #703,
+  recorded in [the #703 entry](#october-24-2026-pr-703), which also carries the
+  unresolved first-prompt comparison that `4713d367` inherited).
 - Previous official ancestor: `1167a94475ad888534a99c9fb72401636cd9f7e7`.
 - Imported official head: `79c2dcc56f00c69d4085e52bde6d290b74a99ccd`.
 - Integration merges: `9f15b369` (through `6c8b2ff4`, #714) and `52dc136f`
