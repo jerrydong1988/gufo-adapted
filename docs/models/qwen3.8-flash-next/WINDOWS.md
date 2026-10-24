@@ -18,6 +18,34 @@ code the Windows build does not contain:
 
 ## Benchmarks
 
+### Unseeded MTP draft pricing (October 24, 2026)
+
+Official #703 prices unseeded sampled MTP drafts at the decoding occupancy. The
+matched first-request control (varied 11,036-token prompt, two ABBA arm pairs
+per mode, fresh process per arm) is `inconclusive`, so no qualified timing
+result is claimed:
+
+| Mode/request | Base prefill (ms) | Candidate prefill (ms) | Verdict |
+| --- | --- | --- | --- |
+| AR reuse | 6466.72, 6252.23 | 6335.07, 6264.79 | same |
+| AR no-reuse | 6111.55, 6107.36 | 6101.19, 6104.75 | same |
+| MTP reuse | 6601.85, 6524.59 | 6494.09, 6487.25 | same |
+| MTP no-reuse | 6326.67, 6336.19 | 6319.90, 6335.76 | same |
+
+Prefill, TTFT, wall, queue and cache restore are `same` in every cell; all
+eight arms return `ACK` with zero reused tokens, identical prompt/draft work
+and a graceful stop. The only unsettled cells are `cache_snapshot_ms` and one
+MTP `decode_ms`, and they are not attributable to this change:
+`cache_snapshot_bytes` is byte-identical between the binaries, the phase is a
+pageable 0.54-1.10 GB device-to-host capture whose implied throughput spans
+12.1-21.4 GB/s, and an unchanged-binary control reproduces the same flagged
+cells at 29-53% spread with no code difference. The tolerance is unchanged and
+the cells stay unqualified until the pinned capture
+([#688](../../WINDOWS-UPSTREAM-SYNC.md#pr-688-windows-dflash2-continuation-latency))
+lands. Evidence is in `sync-703-2026-10-24/` and
+`sync-noise-floor-2026-10-24/` in the
+[evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
+
 ### BF16 indexer K-order prefill (October 24, 2026)
 
 Official #714 lets every BF16 indexer projection use the dense kernel in plain
@@ -50,9 +78,13 @@ the memcpy repeatability band added to `compare-phases.py` on October 24 reports
 those four cells as `within noise` with their payloads and 12.4-18.4 GB/s
 throughput, and the run as `passed`. These spots do not qualify a speedup.
 
-All eight arms stop gracefully through the new upstream console handler.
-Evidence is in `sync-714-713-2026-10-24/` in the
-[evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
+All eight arms stop gracefully through the new upstream console handler. Their
+`cache_snapshot_ms` cells carry the same unresolved noise as the #703 control:
+an unchanged-binary replay of the same binary flags the same class of cells
+(29-53% spread) with no code difference, so those verdicts stay `inconclusive`
+and no speedup or regression is claimed from them.
+Evidence is in `sync-714-713-2026-10-24/` and `sync-noise-floor-2026-10-24/` in
+the [evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
 
 ### YaRN matched follow-up (October 23, 2026)
 
