@@ -324,6 +324,111 @@ Reply with exactly the word ACK."},
 }
 ```
 
+## October 24, 2026: PR #714 and #713
+
+Status: **imported and locally qualified on `52dc136ff6aa`, and all six
+executed hosted gates passed on `563c0be4` (three functional jobs skipped);
+draft [PR #85](https://github.com/thomas9120/gufo-windows/pull/85) makes
+official ancestry visible and waits for a merge-commit integration**. #714
+touches the Flash-Next prefill indexer GEMM, so its live timing controls are
+part of this layer. #713 replaces the fork's local console handler with the
+upstream shutdown leaf.
+
+- Windows base: `4713d367422302902d846595a24ec7b91ce069b4` (official #703
+  imported by merge `4713d367`; that import has no separate log entry).
+- Previous official ancestor: `1167a94475ad888534a99c9fb72401636cd9f7e7`.
+- Imported official head: `79c2dcc56f00c69d4085e52bde6d290b74a99ccd`.
+- Integration merges: `9f15b369` (through `6c8b2ff4`, #714) and `52dc136f`
+  (through `79c2dcc5`, #713).
+- Scope: #714 and #713 only. #722 and later commits, including the official
+  0.22.0 release commit `7b1bf049`, are outside this layer.
+- Evidence ([evidence archive](#evidence-archive)): `sync-714-713-2026-10-24/`.
+
+| PR | Upstream change | Merge SHA |
+| --- | --- | --- |
+| [#714](https://github.com/gufo-org/gufo/pull/714) | fix(qwen38-flash-next): sum BF16 indexer projections in K order for every token | `6c8b2ff4c7d6c7c2e00835f84e6d4b4cee1c7226` |
+| [#713](https://github.com/gufo-org/gufo/pull/713) | feat(platform): add the shutdown_signal leaf | `79c2dcc56f00c69d4085e52bde6d290b74a99ccd` |
+
+### Merge review
+
+#714 merges cleanly; `kernels/rocm/kernels.hip.cpp` and `kernels.hpp`
+auto-merge against the #699 revert and the revert stays intact (no
+`SampledMtpCandidates`, `LogitCandidate`, `VerificationCandidateTileKernel` or
+other recorded identifier is present). The change deletes the `own_bf16` plan
+gate and the `DenseF16GEMM` StaggerU rotation, so every BF16 indexer projection
+now takes the fork-independently fast dense kernel with plain K order. No
+Windows-specific code is involved.
+
+#713 has one conflict in `src/cli/serve/http_server.cpp`: adopt upstream's
+`platform::ShutdownSignalGuard` and delete the fork's local `ShutdownSignals`
+sigaction pair and `RequestConsoleShutdown` handler. The upstream leaf already
+implements the Windows console path natively (`CTRL_C`/`CTRL_BREAK` mapped onto
+`SIGINT`, hold-and-drain for `CTRL_CLOSE`/logoff/shutdown), so the resolution
+shrinks the maintained difference instead of adding a second handler. The
+`socket.hpp` include stays (`SocketHandle`/`kInvalidSocket`); upstream's
+`net.hpp` include is not needed because its leaf remains unreferenced here.
+`signal(SIGPIPE, SIG_IGN)` becomes `platform::IgnoreSocketPipeSignal()` and the
+accept loop calls `platform::NotifyShutdownHandled()` after `stop()`. Both new
+leaf files are byte-identical to official, and the root `CMakeLists.txt` source
+addition auto-merges.
+
+### Compatibility and validation
+
+| Contract | Outcome |
+| --- | --- |
+| Cached concurrent n-gram reads | Reviewed/unchanged: no n-gram, loader or read-flag change; the first-prompt control exercises the cold path in all eight arms. |
+| WDDM admission budgets | Reviewed/unchanged: no admission helper, `hipMemGetInfo` caller or host-budget change. |
+| Pinned memory and transfer lifetime | Reviewed/unchanged; #688 pinned capture remains deferred and its identifiers stay absent. |
+| Sockets and shutdown | Validated: the leaf owns the signal and console paths, the Windows CPU shutdown checks pass, a direct `CTRL_CLOSE` probe drains an in-flight request, and all eight HIP server arms stop gracefully. |
+| Filesystem identity, privacy and failures | Reviewed/unchanged: native CPU filesystem, store and identity checks pass. |
+| GPU queue policy | Reviewed/unchanged: CPU startup-policy checks pass; server startup leaves `GPU_MAX_HW_QUEUES` untouched. |
+
+Completed checks:
+
+- Native Windows CPU configure/build and **16/16 CTests pass** (20.76 s),
+  including `win32_server_shutdown_test` and the Winsock transport checks.
+- Native HIP `gufo` builds at `52dc136ff6aa`; SHA-256
+  `5173d1258d07b01b2df4cc8151b928a82d72c4f1679e5e159b82049020036036`.
+- `qwen38_flash_next.blaslt_ops` and `qwen38_flash_next.projection_ops` pass on
+  `gfx1151`. `qwen38_flash_next_dense_gemm_bench` reports identical batches at
+  every offset for the four BF16 indexer shapes ("rows changed with their batch
+  offset at 0 of 5 offsets") and 3.2-3.8e-05 maximum deviation from the library
+  kernel, with the own kernel 3.6-4.5x faster.
+- Matched first-request control on a varied 11,036-token prompt, AR and MTP,
+  reuse and no-reuse, two ABBA arm pairs against the #703 candidate binary: no
+  gated phase regresses, prefill is 0.6-1.9% faster and decode is unchanged.
+  All eight arms return `ACK` with identical prompt/cache/draft work and stop
+  gracefully with exit code 0.
+- Standard pp2048/tg128 spots (two per binary and mode) show unchanged decode
+  and 0.4-0.5% higher prefill throughput. They do not qualify a speedup.
+- `CTRL_CLOSE` probe: posting `WM_CLOSE` to a private console sends the new
+  console event, the server logs `event=shutdown_requested signal=15`, drains
+  the in-flight request and exits, where the previous fork handler returned
+  `FALSE` and let the default handler terminate it.
+- Documentation, maintained-difference (`diff-guard.ps1`), sync-tool, inventory
+  regression gate and `git diff --check` checks pass.
+- Hosted gates on `563c0be4`: the shared formatting and documentation check,
+  the Linux CPU contracts, the native Windows CPU contracts, the upstream
+  difference guard, the installer and the browser-launcher checks pass. The
+  GPU functional jobs are skipped, as before.
+
+### Live checks and limits
+
+- The hosted gates qualify only the checks they run; the Flash-Next timing,
+  GPU/model and console-close results above are local Windows evidence.
+- `gufo bench --validate-prefill 512` fails its own cosine gate on **both**
+  binaries: the candidate reports rmse `0.778032`, cosine `0.978565` against
+  the unchanged `0.979` limit and max error `4.84346`, and the #703 base fails
+  the same check and exits early. The failure is inherited and visible; it is
+  not attributed to #714 and no oracle pass is claimed. The base binary's
+  printout rounds to two decimals (`0.78`/`0.98`/`4.84`), so this probe cannot
+  separate the two revisions' exact values.
+- The comparison status is `inconclusive` because four `cache_snapshot_ms`
+  cells are noisy, matching the retained #703 comparison. Every observation is
+  kept; nothing is averaged or relabelled.
+- No full numerical sweep, quality benchmark or complete Windows performance
+  qualification was run for this layer.
+
 ## October 23, 2026: PR #677
 
 Status: **merged** by PR #79 as `ad3696f5`. Local Windows checks passed, and

@@ -50,6 +50,7 @@
 #include "src/cli/serve/websocket.hpp"
 #include "src/core/crypto/sha256.hpp"
 #include "src/core/json.hpp"
+#include "src/core/platform/shutdown_signal.hpp"
 #include "src/core/platform/socket.hpp"
 #include "src/core/utf8.hpp"
 #include "src/models/qwen/chat_template.hpp"
@@ -66,54 +67,17 @@ void RequestShutdown(int signal) noexcept {
   shutdown_signal.store(signal, std::memory_order_relaxed);
 }
 
-#ifdef _WIN32
-BOOL WINAPI RequestConsoleShutdown(DWORD event) noexcept {
-  if (event != CTRL_C_EVENT && event != CTRL_BREAK_EVENT)
-    return FALSE;
-  RequestShutdown(event == CTRL_C_EVENT ? SIGINT : SIGBREAK);
-  return TRUE;
-}
-#endif
-
 class ShutdownSignals {
 public:
   ShutdownSignals() {
+    // Reset before installation: a signal landing between the previous
+    // guard's uninstall and this store must not be erased afterwards.
     shutdown_signal.store(0, std::memory_order_relaxed);
-    struct sigaction action{};
-    action.sa_handler = RequestShutdown;
-    ::sigemptyset(&action.sa_mask);
-    if (::sigaction(SIGINT, &action, &previous_interrupt_) != 0)
-      throw std::system_error(errno, std::generic_category(),
-                              "install SIGINT handler");
-    if (::sigaction(SIGTERM, &action, &previous_terminate_) != 0) {
-      const int error = errno;
-      (void)::sigaction(SIGINT, &previous_interrupt_, nullptr);
-      throw std::system_error(error, std::generic_category(),
-                              "install SIGTERM handler");
-    }
-#ifdef _WIN32
-    if (!::SetConsoleCtrlHandler(RequestConsoleShutdown, TRUE)) {
-      const auto error = ::GetLastError();
-      (void)::sigaction(SIGTERM, &previous_terminate_, nullptr);
-      (void)::sigaction(SIGINT, &previous_interrupt_, nullptr);
-      throw std::system_error(error, std::system_category(),
-                              "install console shutdown handler");
-    }
-#endif
+    guard_ = platform::ShutdownSignalGuard(&RequestShutdown);
   }
-  ~ShutdownSignals() {
-#ifdef _WIN32
-    (void)::SetConsoleCtrlHandler(RequestConsoleShutdown, FALSE);
-#endif
-    (void)::sigaction(SIGTERM, &previous_terminate_, nullptr);
-    (void)::sigaction(SIGINT, &previous_interrupt_, nullptr);
-  }
-  ShutdownSignals(const ShutdownSignals&) = delete;
-  ShutdownSignals& operator=(const ShutdownSignals&) = delete;
 
 private:
-  struct sigaction previous_interrupt_{};
-  struct sigaction previous_terminate_{};
+  platform::ShutdownSignalGuard guard_;
 };
 
 // ---------------------------------------------------------------------------
@@ -1915,9 +1879,7 @@ bool HttpServer::start(std::string* error) {
     }
     return false;
   }
-#ifndef _WIN32
-  (void)::signal(SIGPIPE, SIG_IGN);
-#endif
+  platform::IgnoreSocketPipeSignal();
   listen_fd_ = ::socket(addr.ss_family, SOCK_STREAM, 0);
   if (listen_fd_ == platform::kInvalidSocket) {
     if (error != nullptr)
@@ -2005,6 +1967,7 @@ void HttpServer::run(bool handle_signals) {
         Logger::Info("server", "event=shutdown_requested signal=" +
                                    std::to_string(signal));
         stop();
+        platform::NotifyShutdownHandled();
         break;
       }
     }

@@ -18,6 +18,39 @@ code the Windows build does not contain:
 
 ## Benchmarks
 
+### BF16 indexer K-order prefill (October 24, 2026)
+
+Official #714 lets every BF16 indexer projection use the dense kernel in plain
+K order instead of matching the library kernel's StaggerU rotation. The
+benchmark harness is unchanged; the control binary is the qualified #703
+candidate `2bdbc626` (`4713d3674223`), staged with the byte-identical runtime
+set (`d307ac20`), and the candidate is `52dc136ff6aa`.
+
+Matched fresh-process first-request control: varied 11,036-token prompt, 32K
+context, two sessions, 8 GiB RAM cache, thinking off, temperature zero, AR and
+MTP, reuse and no-reuse, two ABBA arm pairs. Every request reports zero reuse,
+returns `ACK`, and keeps its work identical (one completion token; MTP
+proposes one draft and accepts zero, AR proposes none). No gated phase
+regresses; prefill is 0.6-1.9% faster and decode is unchanged.
+
+| Mode/request | Base prefill (ms) | Candidate prefill (ms) | Base/candidate decode (ms) |
+| --- | --- | --- | --- |
+| AR reuse | 6454.58, 6478.18 | 6417.03, 6419.26 | 44.98/45.33 vs 45.51/45.22 |
+| AR no-reuse | 6219.96, 6243.27 | 6167.94, 6163.68 | 36.80/36.95 vs 37.57/37.15 |
+| MTP reuse | 6731.61, 6674.29 | 6606.46, 6657.77 | 56.03/55.28 vs 55.70/56.83 |
+| MTP no-reuse | 6466.44, 6479.63 | 6414.32, 6407.63 | 53.65/54.78 vs 54.43/53.84 |
+
+Two standard pp2048/tg128 spots per binary and mode give unchanged decode and
+slightly higher prefill: AR 1762.42/1745.10 -> 1762.92/1760.08 tok/s and
+28.24/28.12 -> 28.24/28.25 tok/s; MTP 1694.93/1702.09 -> 1704.90/1708.85 and
+37.69/37.73 -> 37.70/38.01 tok/s. The comparison status is `inconclusive`
+because four `cache_snapshot_ms` cells are noisy, as in the retained #703
+comparison; every observation is kept. These spots do not qualify a speedup.
+
+All eight arms stop gracefully through the new upstream console handler.
+Evidence is in `sync-714-713-2026-10-24/` in the
+[evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
+
 ### YaRN matched follow-up (October 23, 2026)
 
 The retained base/candidate executables and all 143 runtime files still match
@@ -155,6 +188,31 @@ These focused Windows controls do not replace the Linux tables in
 [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Quality
+
+### BF16 indexer sums (October 24, 2026)
+
+Official #714 makes a row's indexer sums independent of its position in the
+prefill batch. On `gfx1151`, `qwen38_flash_next.blaslt_ops` and
+`qwen38_flash_next.projection_ops` pass. `dense_gemm_bench` (4096 tokens, five
+repetitions) reports the intended invariance for every widened shape and a
+3.2-3.8e-05 maximum deviation from the library kernel:
+
+| Shape | Library (ms) | Own (ms) | Rows changed with batch offset |
+| --- | ---: | ---: | --- |
+| bf512 | 1.988 | 0.451 | 0 of 5 |
+| bf256 | 1.050 | 0.288 | 0 of 5 |
+| bf128 | 0.590 | 0.139 | 0 of 5 |
+| bf64 | 0.361 | 0.081 | 0 of 5 |
+
+`gufo bench --validate-prefill 512` fails its own cosine gate on the candidate
+(rmse `0.778032`, cosine `0.978565` against the unchanged `0.979` limit, max
+error `4.84346`) **and** on the #703 base binary, which exits early on the same
+check. This is an inherited Windows numerical gap, not a #714 regression: no
+oracle pass is claimed, the tolerance is unchanged, and the probe cannot
+separate the two revisions because the base printout rounds to two decimals.
+
+Evidence is in `sync-714-713-2026-10-24/` in the
+[evidence archive](../../WINDOWS-UPSTREAM-SYNC.md#evidence-archive).
 
 ### Over-RAM checkpoint reclaim (October 23, 2026)
 
