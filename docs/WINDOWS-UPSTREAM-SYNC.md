@@ -291,6 +291,23 @@ repeats or a focused control, and save failed observations as well as
 successes. For these artifacts, expect 11,036 prompt tokens, zero reused
 tokens and `ACK`.
 
+`cache_snapshot_ms` and `cache_restore_ms` time a pageable device-to-host copy,
+so their duration follows the payload rather than the request. On this host the
+same binary moved by up to 53% between repeats at a byte-identical payload (the
+unchanged-binary control of October 24, 2026, kept in the
+`sync-noise-floor-2026-10-24` [evidence archive](#evidence-archive): 82.96 ms
+against 54.27 ms for the same 1.07 GB), which is wider than the 5%/3 ms rule,
+so the fixed rule cannot judge them. The
+comparison therefore requires the payload bytes to match as part of the work
+and reports a move inside `MEMCPY_REPEATABILITY` (55%, the measured envelope) as
+`within noise` together with the payload and the implied throughput, in the
+phase cell and in a note. That recording does not qualify the phase: it says
+the instrument cannot resolve it. A move beyond the envelope, a changed
+payload, or evidence without the byte count keeps the strict rule. Prefill,
+TTFT, wall and decode are never excused this way — they are what the control
+exists to catch, and their measured repeatability (decode reached 7.4% on the
+same binary) is a reason to add a repeat pair, not to widen the gate.
+
 On this host, the first GPU submission after the device idles for about 5 s
 stalls for 0.3–0.9 s in the driver. This happens in AR and MTP, with any
 binary, and also mid-process after an idle gap. A fresh arm's first request
@@ -425,7 +442,12 @@ Completed checks:
   separate the two revisions' exact values.
 - The comparison status is `inconclusive` because four `cache_snapshot_ms`
   cells are noisy, matching the retained #703 comparison. Every observation is
-  kept; nothing is averaged or relabelled.
+  kept; nothing is averaged or relabelled. Replaying the retained
+  `control.json` with the [memcpy calibration](#reproduce-the-first-request-control)
+  added after the merge reports those four cells as `within noise` with their
+  payloads and 12.4-18.4 GB/s throughput and the run as **`passed`**; the merge
+  itself was made on the `inconclusive` output, and the earlier verdicts stay
+  in the record above unchanged.
 - No full numerical sweep, quality benchmark or complete Windows performance
   qualification was run for this layer.
 
