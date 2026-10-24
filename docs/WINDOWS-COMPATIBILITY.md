@@ -72,13 +72,19 @@ Record imported PRs, revision identities and outcomes in the
   Local shutdown must cancel blocked I/O and join workers; disconnect handling
   and orderly close must preserve final HTTP/WebSocket data.
   Implementation: [`socket.hpp`](../src/core/platform/socket.hpp),
-  [`http_server.cpp`](../src/cli/serve/http_server.cpp) and
+  [`http_server.cpp`](../src/cli/serve/http_server.cpp),
+  [`shutdown_signal.cpp`](../src/core/platform/shutdown_signal.cpp) and
   [`websocket.cpp`](../src/cli/serve/websocket.cpp).
   Upstream's [`net.hpp`](../src/core/platform/net.hpp) leaf (official PR #711)
   is imported byte-identical but unreferenced: its call sites store handles in
   `int` and it has no `errno` mapping or cancel-on-shutdown, so keep
   `socket.hpp` as the implementation until the
   [convergence slice](WINDOWS-UPSTREAM-SYNC.md#october-23-2026-pr-711) lands.
+  The shutdown handler is upstream's
+  [`shutdown_signal`](../src/core/platform/shutdown_signal.hpp) leaf
+  (official PR #713): it owns both the POSIX `sigaction` pair and the Windows
+  console handler, which holds close/logoff/shutdown events for a bounded
+  drain. Do not reintroduce a second console handler in `http_server.cpp`.
   Regression: [`http_server_test`](../tests/cli/http_server_test.cpp),
   [`audio_websocket_test`](../tests/cli/audio_websocket_test.cpp) and
   [`win32_server_shutdown_test`](../tests/platform/win32_server_shutdown_test.py).
