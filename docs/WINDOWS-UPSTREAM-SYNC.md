@@ -326,8 +326,10 @@ Reply with exactly the word ACK."},
 
 ## October 24, 2026: PR #714 and #713
 
-Status: **imported and locally qualified on `52dc136ff6aa`; the hosted Linux,
-repository and Windows CPU gates are pending until the sync PR runs**. #714
+Status: **imported and locally qualified on `52dc136ff6aa`, and all six
+executed hosted gates passed on `563c0be4` (three functional jobs skipped);
+draft [PR #85](https://github.com/thomas9120/gufo-windows/pull/85) makes
+official ancestry visible and waits for a merge-commit integration**. #714
 touches the Flash-Next prefill indexer GEMM, so its live timing controls are
 part of this layer. #713 replaces the fork's local console handler with the
 upstream shutdown leaf.
@@ -405,12 +407,15 @@ Completed checks:
   `FALSE` and let the default handler terminate it.
 - Documentation, maintained-difference (`diff-guard.ps1`), sync-tool, inventory
   regression gate and `git diff --check` checks pass.
-- Formatting is pending: no `clang-format` is installed on this host.
+- Hosted gates on `563c0be4`: the shared formatting and documentation check,
+  the Linux CPU contracts, the native Windows CPU contracts, the upstream
+  difference guard, the installer and the browser-launcher checks pass. The
+  GPU functional jobs are skipped, as before.
 
 ### Live checks and limits
 
-- The hosted Linux/repository and Windows CPU gates have not run for this
-  layer; they need the sync PR.
+- The hosted gates qualify only the checks they run; the Flash-Next timing,
+  GPU/model and console-close results above are local Windows evidence.
 - `gufo bench --validate-prefill 512` fails its own cosine gate on **both**
   binaries: the candidate reports rmse `0.778032`, cosine `0.978565` against
   the unchanged `0.979` limit and max error `4.84346`, and the #703 base fails
