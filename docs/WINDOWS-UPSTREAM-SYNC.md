@@ -341,6 +341,128 @@ Reply with exactly the word ACK."},
 }
 ```
 
+## October 24, 2026: PR #722, #707 and #729
+
+Status: **imported and locally qualified on `6665f4edda22`; draft PR #88,
+hosted gates passed on `f9093207`**. Three checkpoints end before official
+#705, which conflicts in `engine.cpp` and `prompt_lookup.hpp` and sits next to
+the [#688](#pr-688-windows-dflash2-continuation-latency) and
+[#699](#pr-699-windows-first-request-mtp-decode-regression) regions. It is
+deferred until upstream's fix for those is available. Two Windows toolchain
+problems in #729 are repaired by a retained, marked compatibility edit.
+
+- Windows base: `0e1783d6947a27ad5767df885b6ff6be292401ee` (PR #86 merged).
+- Previous official ancestor: `79c2dcc56f00c69d4085e52bde6d290b74a99ccd`
+  (official #713).
+- Imported official head: `ddc31dc7685101b1d2336328a293b72fab0bed70`.
+- Scope: #722, #707 and #729 only. #705 and later commits, including the
+  0.22.0 release commit `7b1bf049`, are outside this layer.
+- Evidence ([evidence archive](#evidence-archive)): `sync-722-707-729/`, still
+  under the task worktree's `build/` until archived.
+
+| PR | Upstream change | Merge SHA | Checkpoint |
+| --- | --- | --- | --- |
+| [#722](https://github.com/gufo-org/gufo/pull/722) | fix(serve): accept standard image detail values as automatic detail | `9fa36451facdf2b231d52afec72670a0fe2543b5` | `67b8ef06` |
+| [#707](https://github.com/gufo-org/gufo/pull/707) | fix(qwen38-flash-next): give each HIP stream its own qfn_mmq scratch arena | `68ff41a86f1e76bfd61ca85e47722ae78c17f05e` | `bbd3a3d0` |
+| [#729](https://github.com/gufo-org/gufo/pull/729) | feat(platform): add the publish and prefault leaves | `ddc31dc7685101b1d2336328a293b72fab0bed70` | `e4e9d432` |
+
+All three merge without conflicts. Compatibility fix commits: `6665f4ed` and
+the comment-only marker commit `9f6555fc`.
+
+### Merge review
+
+#722 and #707 merge cleanly and touch no Windows-owned code. #707 keeps one
+scratch arena per `(device, stream)` instead of one per context; its
+`qfn_mmq_release_stream` call is in `Executor::~Executor`. The #699 revert is
+untouched and its recorded identifiers stay absent.
+
+#729 replaces the POSIX-only plan-database publication in
+`hipblaslt_plan_database.cpp` and the `madvise`-based body of
+`mapped_prefetch.hpp` with the `publish` and `prefault` leaves, which already
+carry Win32 paths (`MoveFileExA`, `PrefetchVirtualMemory`, SEH page touching).
+It merges cleanly, but two defects only show up in Windows builds:
+
+1. **HIP build.** `.hip` translation units reach `prefault.hpp` through
+   `mapped_prefetch.hpp` (`minimax_h3/prompt_encoder.hip`). clang's gfx1151
+   device pass rejects SEH (`error: SEH '__try' is not supported on this
+   target`), so the candidate did not build. Upstream's Windows CI builds CPU
+   and cross-builds only. The helper is host-only; it is compiled out under
+   `__HIP_DEVICE_COMPILE__`.
+2. **Fault reporting.** `platform_prefault_test` segfaulted. TheRock clang 23
+   keeps no SEH scope around a `__try` that holds only loads: the object has
+   no exception handler and the filter never runs (`-fasync-exceptions` or a
+   call inside the scope fixes it; MSVC `cl` is unaffected). The page touch now
+   goes through a volatile function pointer so clang keeps the scope, rather
+   than changing codegen for the whole build with `-fasync-exceptions`. The
+   test passes in the CPU and GPU presets.
+
+Both edits are in `src/core/platform/prefault.hpp`, carry `WINDOWS:` markers and
+are listed in `shared-edits.json`. They are upstream candidates.
+
+### Compatibility and validation
+
+| Contract | Outcome |
+| --- | --- |
+| Cached concurrent n-gram reads | Reviewed/unchanged: no n-gram or loader change; `ngram_cache_hits` and `ngram_disk_reads` match across the base and head arms. |
+| WDDM admission budgets | Validated for the measured workload: the GPU Process Memory counters (dedicated, shared, local, committed) are byte-identical for base and head at idle and after two prompts, AR and MTP, two ABBA pairs each (`gpu-memory/`). #707's per-stream arenas add no measurable footprint with `--sessions 2` and one request at a time; concurrent sessions were not exercised. |
+| Pinned memory and transfer lifetime | Reviewed/unchanged; #688 pinned capture stays deferred and its identifiers are absent. |
+| Sockets and shutdown | Validated: all 16 live arms stopped gracefully with exit code 0, and the CPU gate runs the shutdown and Winsock tests. |
+| Filesystem identity, privacy and failures | Validated for the new leaves: `platform_publish_test`, `platform_prefault_test` and `hipblaslt_plan_cache_test` pass in both presets, and the repaired fault path reports `ERROR_NOACCESS`. Not exercised live: the Windows plan-database publication and a prefault of real weights (see below). |
+| GPU queue policy | Reviewed/unchanged: no queue-policy code; the CPU startup-policy test passes. |
+
+Completed checks:
+
+- Native Windows CPU configure/build and **16/16 CTests pass**. The three new
+  tests are outside the preset's filter, so they were built and run explicitly
+  and pass (`platform_publish_test`, `platform_prefault_test`,
+  `hipblaslt_plan_cache_test`).
+- Native HIP `gufo` at `6665f4edda22`, SHA-256
+  `4e2ab445e6762190e5b3d3d6b2a96ddb8fb9eb578e6e5d704df27939498946bb`. Base
+  `0e1783d6947a`, built from a detached worktree with the same toolchain
+  (TheRock 10.0.0), SHA-256
+  `1a96537e83371b456f7c0d0f7b411ba7cd3ead1d7183f842b3b7130dcb55ac55`. Both
+  runtimes have the same DLL set hash (`d307ac209b4f`).
+- GPU preset tests pass: `qwen38_flash_next.projection_ops` (includes #707's
+  new per-stream arena cases), `qwen38_flash_next.blaslt_ops`, and the three
+  platform tests.
+- Matched first-request control, varied 11,036-token prompt, AR and MTP, reuse
+  and no-reuse, two ABBA arm pairs, fresh process per arm: **passed**. Every
+  gated phase is `same`; MTP first decode is 51.92-53.33 ms on both sides and
+  AR 42.62-44.08 ms, so #707 does not repeat the #699 first-decode pattern.
+  The `cache_snapshot_ms` cells that move are reported `within noise` with
+  payloads and 14.9-20.9 GB/s, as defined in
+  [the procedure](#reproduce-the-first-request-control). All arms return `ACK`
+  with identical prompt, cache and draft work.
+- `diff-guard.ps1`, the inventory regression gate (`-Candidate HEAD`),
+  `check-docs.py`, `git diff --check` and the repository formatting check
+  (631 C++ files, clang-format 21.1.8) pass.
+
+### Live checks and limits
+
+- `PrefaultMappedRange` has one live observation, through the DFlash2 loader
+  (its callers are the DFlash2, MiniMax and DeepSeek loaders, not Flash-Next).
+  The head HIP `gufo` (`4e2ab445e676`) served Qwen 27B Q4_K_XL with the Q4_K_M
+  DFlash2 draft, 8192 context, one session: the load completed in 12.0 s through
+  the `draft_weights` phase and a greedy 120-token request drafted 103 of 103
+  tokens over 16 rounds (41.3 tokens/s, first token 683 ms). The log has no
+  prefault event, so this shows the path loads real weights without error, not
+  its speed or fault handling. It was not compared with base, the weights were
+  probably already cached, and the server was stopped with `taskkill /F`.
+  MiniMax and DeepSeek loads were not run (`dflash2-live/` in the evidence).
+- The Windows plan-database publication (`MoveFileExA`) is covered by
+  `hipblaslt_plan_cache_test` but was not observed in a live server.
+- The hosted Linux and Windows gates passed on `f9093207` (draft PR #88). The
+  GPU functional suites and the standard pp2048/tg128 benchmark were not run for
+  this layer.
+- Pre-existing and unchanged: `compat/win32/posix.cpp`'s
+  `madvise(MADV_POPULATE_READ)` has the same `__try`-around-loads pattern and,
+  built with this toolchain, crashes on a faulting page instead of returning
+  `EFAULT` (reproduced in a standalone probe). #729 removes that path from
+  `PrefaultMappedRange`; the shim's other callers are not changed here. Draft PR
+  #89 fixes the shim separately.
+- No full numerical sweep, quality benchmark or complete Windows performance
+  qualification was run for this layer.
+
 ## October 24, 2026: PR #703
 
 Status: **imported as `4713d367` and merged into `windows-main` under the
