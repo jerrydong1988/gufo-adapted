@@ -109,7 +109,14 @@ if ($env:VCToolsRedistDir) {
 # Developer use only: VS's LLVM OpenMP DLL is not a redistributable release.
 $openmp = Select-String -LiteralPath "$build/CMakeCache.txt" -Pattern '^OpenMP_libomp_LIBRARY:FILEPATH=(.*)$'
 if ($openmp -and $openmp.Matches[0].Groups[1].Value -match '^(.*)/VC/Tools/MSVC/([^/]+)/lib/x64/libomp\.lib$') {
-  $runtime = Get-ChildItem "$($Matches[1])/VC/Redist/MSVC/$($Matches[2])/debug_nonredist/x64/Microsoft.VC*.OpenMP.LLVM/libomp140.x86_64.dll" -ErrorAction SilentlyContinue
+  $redist = "$($Matches[1])/VC/Redist/MSVC/$($Matches[2])"
+  # Toolset and redist patch versions can differ. Use vcvars' selected redist
+  # only when it belongs to the installation that supplied the import library.
+  if ($env:VCToolsRedistDir -and $env:VCToolsRedistDir.Replace('\', '/').StartsWith(
+      "$($Matches[1])/VC/Redist/MSVC/", [StringComparison]::OrdinalIgnoreCase)) {
+    $redist = $env:VCToolsRedistDir
+  }
+  $runtime = Get-ChildItem "$redist/debug_nonredist/x64/Microsoft.VC*.OpenMP.LLVM/libomp140.x86_64.dll" -ErrorAction SilentlyContinue
   if (-not $runtime) { throw "Cannot find this build's local OpenMP runtime" }
   $runtime | Copy-Item -Destination $build -Force
 } elseif ($openmp -and $openmp.Matches[0].Groups[1].Value -eq $llvmOpenmp) {
