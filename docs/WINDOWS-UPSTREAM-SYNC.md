@@ -343,10 +343,10 @@ Reply with exactly the word ACK."},
 
 ## October 24, 2026: PR #722, #707 and #729
 
-Status: **imported and locally qualified on `6665f4edda22`; unpublished, hosted
-gates pending**. Three checkpoints end before official #705, which conflicts in
-`engine.cpp` and `prompt_lookup.hpp` and sits next to the
-[#688](#pr-688-windows-dflash2-continuation-latency) and
+Status: **imported and locally qualified on `6665f4edda22`; draft PR #88,
+hosted gates passed on `f9093207`**. Three checkpoints end before official
+#705, which conflicts in `engine.cpp` and `prompt_lookup.hpp` and sits next to
+the [#688](#pr-688-windows-dflash2-continuation-latency) and
 [#699](#pr-699-windows-first-request-mtp-decode-regression) regions. It is
 deferred until upstream's fix for those is available. Two Windows toolchain
 problems in #729 are repaired by a retained, marked compatibility edit.
@@ -439,18 +439,27 @@ Completed checks:
 
 ### Live checks and limits
 
-- Nothing in this layer exercises `PrefaultMappedRange` on real weights: its
-  callers are the DFlash2, MiniMax and DeepSeek loaders, not Flash-Next. The
-  leaf is qualified by its tests only; a DFlash2 model load is pending.
+- `PrefaultMappedRange` has one live observation, through the DFlash2 loader
+  (its callers are the DFlash2, MiniMax and DeepSeek loaders, not Flash-Next).
+  The head HIP `gufo` (`4e2ab445e676`) served Qwen 27B Q4_K_XL with the Q4_K_M
+  DFlash2 draft, 8192 context, one session: the load completed in 12.0 s through
+  the `draft_weights` phase and a greedy 120-token request drafted 103 of 103
+  tokens over 16 rounds (41.3 tokens/s, first token 683 ms). The log has no
+  prefault event, so this shows the path loads real weights without error, not
+  its speed or fault handling. It was not compared with base, the weights were
+  probably already cached, and the server was stopped with `taskkill /F`.
+  MiniMax and DeepSeek loads were not run (`dflash2-live/` in the evidence).
 - The Windows plan-database publication (`MoveFileExA`) is covered by
   `hipblaslt_plan_cache_test` but was not observed in a live server.
-- Hosted Linux and Windows gates have not run. The GPU functional suites and the
-  standard pp2048/tg128 benchmark were not run for this layer.
+- The hosted Linux and Windows gates passed on `f9093207` (draft PR #88). The
+  GPU functional suites and the standard pp2048/tg128 benchmark were not run for
+  this layer.
 - Pre-existing and unchanged: `compat/win32/posix.cpp`'s
   `madvise(MADV_POPULATE_READ)` has the same `__try`-around-loads pattern and,
   built with this toolchain, crashes on a faulting page instead of returning
   `EFAULT` (reproduced in a standalone probe). #729 removes that path from
-  `PrefaultMappedRange`; the shim's other callers are not changed here.
+  `PrefaultMappedRange`; the shim's other callers are not changed here. Draft PR
+  #89 fixes the shim separately.
 - No full numerical sweep, quality benchmark or complete Windows performance
   qualification was run for this layer.
 
