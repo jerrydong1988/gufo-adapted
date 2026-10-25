@@ -23,6 +23,21 @@
 int main(int argc, char** argv) {
   if (argc == 2 && std::string(argv[1]) == "child token with spaces")
     return 23;
+  std::cout << "win32_compat_test: madvise populate\n" << std::flush;
+  {
+    // A faulting page must fail the call with EFAULT rather than crash.
+    constexpr size_t kPage = 4096;
+    auto* region = static_cast<char*>(VirtualAlloc(
+        nullptr, 8 * kPage, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    assert(region);
+    assert(madvise(region, 8 * kPage, MADV_POPULATE_READ) == 0);
+    DWORD previous{};
+    assert(VirtualProtect(region + 5 * kPage, kPage, PAGE_NOACCESS, &previous));
+    errno = 0;
+    assert(madvise(region, 8 * kPage, MADV_POPULATE_READ) == -1 &&
+           errno == EFAULT);
+    assert(VirtualFree(region, 0, MEM_RELEASE));
+  }
   std::cout << "win32_compat_test: spawn/wait\n" << std::flush;
   pid_t child{};
   char token[] = "child token with spaces";

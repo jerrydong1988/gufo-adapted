@@ -1141,6 +1141,13 @@ int munmap(void* addr, size_t) {
   return 0;
 }
 
+// clang keeps an SEH scope only around calls that may throw, so a __try holding
+// bare loads never reaches its handler (-fasync-exceptions would change codegen
+// everywhere). Touch pages through a volatile function pointer to keep a call
+// inside the scope.
+static char ReadMappedByte(const volatile char* address) { return *address; }
+static char (*volatile read_mapped_byte)(const volatile char*) = ReadMappedByte;
+
 int madvise(void* addr, size_t length, int advice) {
   if (length == 0) {
     return 0;
@@ -1159,11 +1166,12 @@ int madvise(void* addr, size_t length, int advice) {
       (void)PrefetchVirtualMemory(GetCurrentProcess(), 1, &range, 0);
       const size_t page = SystemInfo().dwPageSize;
       const auto* bytes = static_cast<const volatile char*>(addr);
+      const auto read = read_mapped_byte;
       __try {
         for (size_t i = 0; i < length; i += page) {
-          (void)bytes[i];
+          (void)read(bytes + i);
         }
-        (void)bytes[length - 1];
+        (void)read(bytes + length - 1);
       } __except (EXCEPTION_EXECUTE_HANDLER) {
         errno = EFAULT;
         return -1;
