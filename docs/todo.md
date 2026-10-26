@@ -201,3 +201,20 @@ WebP selection, `gufo-server` copy-vs-symlink target, ROCTX optional, install
     carry `// WINDOWS:` (or `# WINDOWS:`) markers in every changed hunk,
     enforced by `"markers": true` in `shared-edits.json` and
     `diff-guard.ps1` (§3). Their executable code is unchanged by this cleanup.
+
+## 8. Small-carveout APU support (follow-up to PR #91)
+
+- [ ] Set the PAL workarounds automatically for small BIOS carveouts. With a
+  0.5 GB carveout, the reporter of
+  [PR #91](https://github.com/thomas9120/gufo-windows/pull/91) needed
+  `GPU_MAX_SUBALLOC_SIZE=0` to keep small allocations out of the ~335 MiB
+  local heap. They also saw 16 upload streams exhaust it; `GPU_MAX_HW_QUEUES`
+  (already honoured on Windows, see `src/cli/serve/serve.cpp`) may avoid
+  serializing `weight_upload.cpp`. Both must be set before the HIP runtime
+  initializes, so detect the carveout in the launcher (DXGI
+  `DedicatedVideoMemory`) and set them only for small carveouts. Do not set
+  them for 64–96 GB carveouts, and do not edit upstream `main.cpp`. First
+  confirm on the reporter's hardware that the DXGI admission fix plus these
+  variables load and serve Flash-Next. Add PR #91's other Windows-wide
+  changes (hipBLASLt, hipGraph, component cache, snapshot pool) only if
+  that test proves them necessary, and gate them on the carveout.
