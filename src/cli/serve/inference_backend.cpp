@@ -911,7 +911,8 @@ std::unique_ptr<ComponentCacheResources> CreateHipComponentCacheResources(
               // reserve so they do not fall back to managed memory.
               std::size_t heap_free = 0, heap_total = 0;
               const bool heap_fits =
-                  hipMemGetInfo(&heap_free, &heap_total) == hipSuccess &&
+                  platform::DeviceMemoryInfo(&heap_free, &heap_total) ==
+                      hipSuccess &&
                   hip::HeapFitsAboveReserve(heap_free, bytes);
               if (ceiling >= bytes && heap_fits) {
                 limited->active = false;

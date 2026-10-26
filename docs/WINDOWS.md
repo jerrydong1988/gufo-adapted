@@ -623,10 +623,12 @@ GPUs retain the HIP fallback. Failed/partial DXGI queries and overflowing sums
 leave the complete HIP result intact. HIP errors return before DXGI is consulted;
 null output pointers retain the runtime's partial-query behavior.
 
-Six production admission sites use the helper: the Qwen, DeepSeek, and
-Flash-Next resource claims; DeepSeek's FP16-cache and managed-KV decisions; and
-Flash-Next's snapshot allocator. The loader's informational `hipMemGetInfo`
-query remains raw HIP for comparison. Linux's helper directly forwards to
+Nine production admission sites use the helper: the Qwen, DeepSeek, and
+Flash-Next resource claims; DeepSeek's FP16-cache and managed-KV decisions;
+Flash-Next's snapshot allocator; the shared weight-placement and
+session/scratch allocators in `managed_alloc.hpp`; and the component cache's
+pinned-host heap check. The loader's informational `hipMemGetInfo` query
+remains raw HIP for comparison. Linux's helper directly forwards to
 `hipMemGetInfo`. The Windows CMake module links DXGI only into the HIP build;
 the CPU shim and common cache retain their reviewed dependencies.
 
@@ -670,6 +672,29 @@ cache. All test servers were stopped. Disk restart is excluded. Performance
 qualification and the wider
 Linux/model checks remain pending; these checks do not establish
 a physical-memory-pressure or allocation-failure contract.
+
+### Small BIOS carveouts
+
+With the BIOS carveout at its minimum (0.5 GB) and the rest of memory left to
+WDDM, HIP's `hipMemGetInfo` reports only about 75% of the shared budget. Weight
+placement used to compare against that figure, chose managed memory for a large
+model, and the load failed because Windows lacks HIP managed-memory support.
+Weight placement now uses the DXGI budget, like the other admission sites.
+
+[PR #91](https://github.com/thomas9120/gufo-windows/pull/91) reports two more
+failures on such a carveout, both from the AMD PAL driver's small local heap
+(about 335 MiB): small allocations through PAL's suballocator, and hardware
+queues for concurrent upload streams. Two HIP runtime variables, set before
+starting Gufo, address them:
+
+```powershell
+$env:GPU_MAX_SUBALLOC_SIZE = "0"   # place small allocations in shared memory
+$env:GPU_MAX_HW_QUEUES = "2"       # optional: cap hardware queues
+```
+
+Gufo does not set either automatically, and neither has been qualified on a
+small carveout in this fork. A 64–96 GB carveout does not need them. Automatic
+detection is tracked in [the TODO](todo.md).
 
 ## Windows pinned backing and transfers
 

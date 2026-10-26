@@ -60,6 +60,8 @@ function(gufo_windows_device_memory)
     target_link_libraries(gufo_device_memory PUBLIC hip::host PRIVATE dxgi)
     target_compile_definitions(gufo_device_memory PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
     target_link_libraries(gufo_core PRIVATE gufo_device_memory)
+    # Flash-Next's MMQ kernels allocate scratch through managed_alloc.hpp.
+    target_link_libraries(gufo_qwen38_flash_next_mmq PRIVATE gufo_device_memory)
     if (BUILD_TESTING)
       add_executable(qwen38_flash_next_win32_yarn_snapshot_test EXCLUDE_FROM_ALL
         ${PROJECT_SOURCE_DIR}/tests/models/qwen38_flash_next/win32_yarn_snapshot_test.cpp)
