@@ -5,6 +5,7 @@ from copy import deepcopy
 import base64
 import importlib.util
 import io
+from itertools import count
 import json
 from pathlib import Path
 import socket
@@ -1752,6 +1753,7 @@ p.with_suffix(".requests.json").write_text(json.dumps({{
                 args += ["--", sys.executable, "serve", "llm", "--model", "fixture.gguf"]
                 with patch.object(sys, "argv", args), patch.object(functional, "TESTS", root), \
                      patch.object(functional, "server", return_value=contextlib.nullcontext()), \
+                     patch.object(functional.time, "monotonic", side_effect=count(1, 0.001)), \
                      patch.object(functional, "provenance", return_value={}), \
                      patch.object(functional, "join_server_timings"), \
                      patch.object(functional, "execution_coverage", return_value={}), \

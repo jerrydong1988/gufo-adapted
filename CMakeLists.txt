@@ -670,10 +670,11 @@ endfunction()
   add_subdirectory(tests/models/embedding_gemma2)
 
   add_test(NAME gufo_version COMMAND gufo --version)
+  string(REPLACE "+" "\\+" GUFO_RELEASE_VERSION_REGEX "${GUFO_RELEASE_VERSION}")
   set_tests_properties(gufo_version PROPERTIES
     LABELS "cpu"
     PASS_REGULAR_EXPRESSION
-      "gufo version ${GUFO_RELEASE_VERSION} \\(${GUFO_REVISION}\\)")
+      "gufo version ${GUFO_RELEASE_VERSION_REGEX} \\(${GUFO_REVISION}\\)")
 
   add_test(NAME gufo_help COMMAND gufo --help)
   set_tests_properties(gufo_help PROPERTIES LABELS "cpu")
