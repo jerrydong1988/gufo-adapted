@@ -385,6 +385,18 @@ def summarize(parts, streaming, ended, contract=None):
     return measured, digest(output if output is not None else choices) if completed else None
 
 
+def replace_recording(temporary, destination):
+    """Keep atomic recording writes when a Windows reader briefly denies delete."""
+    for attempt in range(20):
+        try:
+            temporary.replace(destination)
+            return
+        except PermissionError as error:
+            if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == 19:
+                raise
+            time.sleep(.05)
+
+
 class Recorder:
     def __init__(self, path, through_case=None):
         self.path = path
@@ -397,7 +409,7 @@ class Recorder:
         if self.path:
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps({"version": 1, "requests": self.rows}, indent=2) + "\n")
-            temporary.replace(self.path)
+            replace_recording(temporary, self.path)
 
     def begin(self, path, body):
         with self.lock:
@@ -717,4 +729,4 @@ def join_server_timings(directory):
                         raise ValueError(f"{path.name}:{row['index']}: missing {field}")
         temporary = path.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, indent=2) + "\n")
-        temporary.replace(path)
+        replace_recording(temporary, path)
