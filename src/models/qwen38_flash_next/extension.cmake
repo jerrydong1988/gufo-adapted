@@ -43,6 +43,13 @@ if (ENGINE_ENABLE_HIP)
   set(QFN_ROCM_DIR "${GUFO_EXTENSION_BUILD_ROOT}/kernels/rocm")
   set(QFN_MMQ_DIR "${QFN_ROCM_DIR}/mmq")
 
+  # clang-cl ignores these GNU driver options unless forwarded.
+  # Preserve the validated Windows device arithmetic and NaN/Inf checks.
+  set(QFN_HIP_MATH_FLAGS -ffast-math -fno-finite-math-only)
+  if(CMAKE_HIP_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    list(TRANSFORM QFN_HIP_MATH_FLAGS PREPEND "/clang:")
+  endif()
+
   set(QFN_MMQ_SOURCES
     ${QFN_MMQ_DIR}/qfn_ggml_stubs.hip.cpp
     ${QFN_MMQ_DIR}/qfn_mmq.hip.cpp
@@ -62,7 +69,7 @@ if (ENGINE_ENABLE_HIP)
   target_compile_definitions(gufo_qwen38_flash_next_mmq PRIVATE
     GGML_HIP_NO_VMM ENGINE_ENABLE_HIP=1)
   target_compile_options(gufo_qwen38_flash_next_mmq PRIVATE
-    $<$<COMPILE_LANGUAGE:HIP>:-O3;-ffast-math;-fno-finite-math-only;-Wno-unused-value;-Wno-unused-command-line-argument>)
+    "$<$<COMPILE_LANGUAGE:HIP>:-O3;${QFN_HIP_MATH_FLAGS};-Wno-unused-value;-Wno-unused-command-line-argument>")
   target_include_directories(gufo_qwen38_flash_next_mmq SYSTEM PUBLIC ${QFN_MMQ_DIR})
   target_link_libraries(gufo_qwen38_flash_next_mmq PUBLIC hip::host roc::hipblas)
 endif()
@@ -103,7 +110,7 @@ if(TARGET gufo_qwen38_flash_next_hip)
   target_compile_definitions(gufo_qwen38_flash_next_hip PRIVATE QFN_ROCM_BUILD=1)
   target_compile_options(gufo_qwen38_flash_next_hip PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-O2>
-    $<$<COMPILE_LANGUAGE:HIP>:-O3;-ffast-math;-fno-finite-math-only;-Wno-unused-command-line-argument>)
+    "$<$<COMPILE_LANGUAGE:HIP>:-O3;${QFN_HIP_MATH_FLAGS};-Wno-unused-command-line-argument>")
   target_include_directories(gufo_qwen38_flash_next_hip SYSTEM PUBLIC
     ${HIPCUB_INCLUDE_DIR}
     ${ROCPRIM_INCLUDE_DIR}
